@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/revalidate-sitemap",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
+
