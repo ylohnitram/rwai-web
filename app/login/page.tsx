@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -21,7 +21,8 @@ const formSchema = z.object({
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(true)
+  const [diagnosticInfo, setDiagnosticInfo] = useState<string | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -32,59 +33,93 @@ export default function LoginPage() {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setError("Supabase is not configured. Set up your environment variables first.")
-      return
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
     }
-
+    
     setIsLoading(true)
     setError(null)
+    setDiagnosticInfo("Starting authentication...")
+
+    // Set timeout for request
+    timeoutRef.current = setTimeout(() => {
+      setIsLoading(false)
+      setError("Authentication request timed out. Please try again.")
+      setDiagnosticInfo("Timed out after 15 seconds")
+    }, 15000)
 
     try {
       const supabase = getSupabaseClient()
 
-      // Attempt to sign in
+      setDiagnosticInfo("Sending authentication request to Supabase...")
+      
+      // Simplified login - just try to authenticate
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       })
 
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+
       if (signInError) {
         setError(signInError.message)
+        setDiagnosticInfo(`Auth error: ${signInError.message}`)
         setIsLoading(false)
         return
       }
 
-      // Check if user is admin
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", data.user.id)
-        .single()
+      setDiagnosticInfo(`Auth successful. User ID: ${data.user?.id}. Checking profile...`)
 
-      if (profileError) {
-        setError(`Error fetching user profile: ${profileError.message}`)
-        await supabase.auth.signOut()
+      // Check admin status
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single()
+
+        if (profileError) {
+          setError(`Profile error: ${profileError.message}`)
+          setDiagnosticInfo(`Profile error: ${profileError.message}`)
+          setIsLoading(false)
+          return
+        }
+
+        setDiagnosticInfo(`Profile retrieved. Role: ${profileData?.role}`)
+
+        if (profileData?.role !== "admin") {
+          setError("Only administrators have access")
+          setDiagnosticInfo("Access denied: User is not an admin")
+          setIsLoading(false)
+          return
+        }
+
+        // Success - redirect
+        setDiagnosticInfo("Authentication successful! Redirecting to admin page...")
+        window.location.href = '/admin'
+      } catch (profileErr: any) {
+        setError(`Profile check error: ${profileErr.message}`)
+        setDiagnosticInfo(`Profile check exception: ${profileErr.message}`)
         setIsLoading(false)
-        return
       }
-
-      if (profileData?.role !== "admin") {
-        setError("Only administrators have access")
-        await supabase.auth.signOut()
-        setIsLoading(false)
-        return
-      }
-
-      // Use window.location for direct navigation
-      window.location.href = '/admin'
-      
     } catch (err: any) {
-      console.error("Login error:", err)
-      setError(`Unexpected error: ${err.message || "Unknown error"}`)
-    } finally {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+      
+      setError(`Unexpected error: ${err.message}`)
+      setDiagnosticInfo(`Exception caught: ${err.message}`)
       setIsLoading(false)
     }
+  }
+
+  function handleDirectAccess() {
+    window.location.href = '/admin'
   }
 
   return (
@@ -96,26 +131,18 @@ export default function LoginPage() {
             <CardDescription>Sign in to manage TokenDirectory</CardDescription>
           </CardHeader>
           <CardContent>
-            {!isSupabaseConfigured && (
-              <Alert className="mb-6 bg-red-900/30 border-red-800 text-red-300">
-                <AlertCircle className="h-4 w-4 mr-2" />
-                <AlertTitle>Supabase is not configured</AlertTitle>
-                <AlertDescription>
-                  <p className="mb-2">
-                    Supabase needs to be configured for login. Go to the Setup page and follow the instructions.
-                  </p>
-                  <Button asChild variant="outline" size="sm" className="mt-2 border-red-800 hover:bg-red-900/30">
-                    <a href="/setup">Go to Setup</a>
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
-
             {error && (
               <Alert className="mb-6 bg-red-900/30 border-red-800 text-red-300">
                 <AlertCircle className="h-4 w-4 mr-2" />
                 <AlertTitle>Login Error</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {diagnosticInfo && (
+              <Alert className="mb-6 bg-blue-900/30 border-blue-800 text-blue-300">
+                <AlertTitle>Diagnostic Info</AlertTitle>
+                <AlertDescription>{diagnosticInfo}</AlertDescription>
               </Alert>
             )}
 
@@ -172,6 +199,19 @@ export default function LoginPage() {
                     "Sign in"
                   )}
                 </Button>
+
+                {/* Emergency direct access button - for testing only */}
+                <div className="mt-8 pt-6 border-t border-gray-800">
+                  <p className="text-sm text-gray-400 mb-4">If you're having trouble logging in, you can try direct access for troubleshooting:</p>
+                  <Button 
+                    type="button"
+                    onClick={handleDirectAccess}
+                    variant="outline"
+                    className="w-full border-red-800 hover:bg-red-900/30 text-red-400"
+                  >
+                    Emergency Direct Access (Testing Only)
+                  </Button>
+                </div>
               </form>
             </Form>
           </CardContent>
