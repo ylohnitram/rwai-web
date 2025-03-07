@@ -20,8 +20,8 @@ interface DirectoryPageProps {
 }
 
 export const metadata = {
-  title: "Project Directory | RWA Directory",
-  description: "Browse and filter tokenized real-world assets from our curated directory",
+  title: "Project Directory | TokenDirectory by RWA Investors",
+  description: "Browse and filter tokenized real-world assets from our curated directory of audited RWA investment projects.",
 }
 
 export default function DirectoryPage({ searchParams }: DirectoryPageProps) {

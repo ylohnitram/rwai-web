@@ -20,13 +20,12 @@ export default function Home() {
 
             <div className="space-y-2">
               <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl max-w-4xl">
-                <span className="text-amber-500">Invest</span> in Tokenized
+                <span className="text-amber-500">Invest</span> in Audited Tokenized
                 <br />
                 Real-World Assets
               </h1>
               <p className="mx-auto max-w-[700px] text-gray-400 md:text-xl">
-                Explore 100+ audited RWA projects with transparent data, global access, and institutional-grade
-                analytics.
+                TokenDirectory by RWA Investors – Explore 100+ audited RWA projects with transparent data, global access, and institutional-grade analytics.
               </p>
             </div>
 

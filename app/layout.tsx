@@ -8,9 +8,9 @@ import Footer from "@/components/footer"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "TokenDirectory - Invest in Tokenized Real-World Assets",
-  description: "Discover institutional-grade real world assets across multiple blockchains",
-    generator: 'v0.dev'
+  title: "TokenDirectory | Audited RWA Projects for Investors",
+  description: "TokenDirectory by RWA Investors – Discover 100+ professionally audited tokenized asset projects with transparent on-chain data and global access.",
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -28,7 +28,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-
-
-import './globals.css'

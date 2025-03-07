@@ -17,12 +17,12 @@ export function generateMetadata({ params }: BlogPostPageProps): Metadata {
 
   if (!post) {
     return {
-      title: "Blog Post Not Found",
+      title: "Blog Post Not Found | TokenDirectory",
     }
   }
 
   return {
-    title: `${post.title} | RWA Directory Blog`,
+    title: `${post.title} | TokenDirectory by RWA Investors`,
     description: post.excerpt,
   }
 }
@@ -183,4 +183,3 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
     </div>
   )
 }
-

@@ -34,17 +34,17 @@ export function generateMetadata({ params }: ProjectPageProps): Metadata {
 
   if (!project) {
     return {
-      title: "Project Not Found | RWA Directory",
+      title: "Project Not Found | TokenDirectory by RWA Investors",
     }
   }
 
   return {
-    title: `${project.name} | RWA Directory`,
+    title: `${project.name} | TokenDirectory by RWA Investors`,
     description: project.description,
     openGraph: {
       images: [`/api/og?title=${encodeURIComponent(project.name)}`],
       type: "website",
-      title: project.name,
+      title: `${project.name} | TokenDirectory by RWA Investors`,
       description: project.description,
     },
   }

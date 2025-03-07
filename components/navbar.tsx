@@ -79,7 +79,7 @@ export default function Navbar() {
       <div className="container flex h-16 items-center px-4 sm:px-6">
         <Link href="/" className="mr-6 flex items-center space-x-2">
           <span className="text-xl font-bold">
-            <span className="text-amber-500">Token</span>Directory
+            <span className="text-amber-500">Token</span>Directory <span className="text-xs text-gray-400">by RWA Investors</span>
           </span>
         </Link>
         <nav className="hidden md:flex flex-1 items-center justify-between">
@@ -221,4 +221,3 @@ export default function Navbar() {
     </header>
   )
 }
-

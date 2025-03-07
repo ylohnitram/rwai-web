@@ -10,7 +10,7 @@ export default function Footer() {
               <span className="text-amber-500">Token</span>Directory
             </h3>
             <p className="text-sm text-gray-400">
-              The global directory for tokenized real-world assets and investment opportunities.
+              TokenDirectory by RWA Investors – The global platform for tokenized real-world assets and investment opportunities.
             </p>
           </div>
           <div className="space-y-3">
