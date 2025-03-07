@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4">
           <div className="space-y-3">
             <h3 className="text-lg font-medium">
-              <span className="text-amber-500">Token</span>Directory<span className="text-xs text-gray-400">by RWA Investors</span>
+              <span className="text-amber-500">Token</span>Directory <span className="text-xs text-gray-400">by RWA Investors</span>
             </h3>
             <p className="text-sm text-gray-400">
               TokenDirectory by RWA Investors – The global platform for tokenized real-world assets and investment opportunities.
