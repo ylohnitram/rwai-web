@@ -33,13 +33,13 @@ export default function ContactPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-gray-300">
-              For general inquiries: <a href="mailto:info@tokendirectory.com" className="text-amber-500 hover:underline">info@tokendirectory.com</a>
+              For general inquiries: <a href="mailto:info@rwa-investors.com" className="text-amber-500 hover:underline">info@rwa-investors.com</a>
             </p>
             <p className="text-gray-300">
-              For project submissions: <a href="mailto:submissions@tokendirectory.com" className="text-amber-500 hover:underline">submissions@tokendirectory.com</a>
+              For project submissions: <a href="mailto:submissions@rwa-investors.com" className="text-amber-500 hover:underline">submissions@rwa-investors.com</a>
             </p>
             <p className="text-gray-300">
-              For partnership opportunities: <a href="mailto:partners@tokendirectory.com" className="text-amber-500 hover:underline">partners@tokendirectory.com</a>
+              For partnership opportunities: <a href="mailto:partners@rwa-investors.com" className="text-amber-500 hover:underline">partners@rwa-investors.com</a>
             </p>
           </CardContent>
         </Card>
