@@ -8,6 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { projects } from "@/data/projects"
 import Breadcrumbs from "@/components/breadcrumbs"
+import TokenWarning from "@/components/token-warning"
+import DocumentWarning from "@/components/document-warning"
+import GeolocationWarning from "@/components/geolocation-warning"
+import LegalDisclaimer from "@/components/legal-disclaimer"
+import RiskSummary from "@/components/risk-summary"
 
 interface ProjectPageProps {
   params: {
@@ -90,6 +95,15 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         </div>
       </div>
 
+      {/* Risk Summary Component */}
+      <RiskSummary 
+        projectId={project.id}
+        riskLevel="low"
+        scamReports={0}
+        sanctionDetected={false}
+        auditVerified={true}
+      />
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <Card className="bg-gray-900 border-gray-800">
@@ -107,6 +121,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               <CardDescription>Security and legal audit information</CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Document Warning Component */}
+              <DocumentWarning />
+              
               <div className="p-6 border border-gray-800 rounded-md flex items-center justify-between">
                 <div className="flex items-center">
                   <FileText className="h-8 w-8 mr-3 text-blue-500" />
@@ -178,7 +195,17 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </Card>
         </div>
       </div>
+      
+      {/* Add Token Warning and Geolocation Warning at the bottom */}
+      <div className="mt-8">
+        <TokenWarning 
+          scamReports={0} 
+          sanctionDetected={false} 
+          auditVerified={true} 
+        />
+        <GeolocationWarning />
+        <LegalDisclaimer />
+      </div>
     </div>
   )
 }
-

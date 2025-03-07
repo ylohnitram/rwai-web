@@ -51,6 +51,11 @@ export default function Footer() {
                   Privacy Policy
                 </Link>
               </li>
+              <li>
+                <Link href="/legal" className="text-sm text-gray-400 hover:text-amber-500 transition-colors">
+                  Legal & Compliance
+                </Link>
+              </li>
             </ul>
           </div>
           <div className="space-y-3">
@@ -61,11 +66,20 @@ export default function Footer() {
             </Link>
           </div>
         </div>
-        <div className="mt-8 border-t border-gray-800 pt-8 text-center">
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} TokenDirectory. All rights reserved.</p>
+        
+        <div className="mt-8 border-t border-gray-800 pt-8">
+          <p className="text-xs text-gray-400 mb-4">
+            This platform serves purely informational purposes. We are not registered with any regulatory authority 
+            (including the SEC or ESMA). While we perform automated scam checks (e.g., Chainabuse reports, OFAC sanctions), 
+            we do not verify the legal status, legitimacy, or investment potential of listed tokens. 
+            Users act at their own risk and must conduct their own due diligence.
+            <Link href="/legal" className="text-amber-500 hover:underline ml-1">
+              Full Disclaimer
+            </Link>
+          </p>
+          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} TokenDirectory. All rights reserved.</p>
         </div>
       </div>
     </footer>
   )
 }
-

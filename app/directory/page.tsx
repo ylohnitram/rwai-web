@@ -7,6 +7,7 @@ import DirectoryFilters from "@/components/directory-filters"
 import Pagination from "@/components/pagination"
 import { projects } from "@/data/projects"
 import Breadcrumbs from "@/components/breadcrumbs"
+import LegalDisclaimer from "@/components/legal-disclaimer"
 
 interface DirectoryPageProps {
   searchParams: {
@@ -60,6 +61,9 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
         {/* Filters */}
         <DirectoryFilters />
 
+        {/* Legal Disclaimer */}
+        <LegalDisclaimer />
+
         {/* Projects Table */}
         <div className="rounded-md border border-gray-800 overflow-hidden">
           <Table>
@@ -110,4 +114,3 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
     </div>
   )
 }
-
