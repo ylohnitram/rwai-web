@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -15,22 +14,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getSupabaseClient } from "@/lib/supabase"
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Zadejte platnou e-mailovou adresu" }),
-  password: z.string().min(6, { message: "Heslo musí mít alespoň 6 znaků" }),
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 })
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(true)
-  const router = useRouter()
-
-  useEffect(() => {
-    // Kontrola, zda jsou nastaveny proměnné prostředí pro Supabase
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setIsSupabaseConfigured(false)
-    }
-  }, [])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -41,8 +32,8 @@ export default function LoginPage() {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!isSupabaseConfigured) {
-      setError("Supabase není nakonfigurován. Nastavte proměnné prostředí.")
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setError("Supabase is not configured. Set up your environment variables first.")
       return
     }
 
@@ -52,33 +43,45 @@ export default function LoginPage() {
     try {
       const supabase = getSupabaseClient()
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Attempt to sign in
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       })
 
-      if (error) {
-        setError(error.message)
+      if (signInError) {
+        setError(signInError.message)
         setIsLoading(false)
         return
       }
 
       // Check if user is admin
-      const { data: profileData } = await supabase.from("profiles").select("role").eq("id", data.user.id).single()
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single()
 
-      if (profileData?.role !== "admin") {
-        setError("Pouze administrátoři mají přístup")
-        // Sign out the user
+      if (profileError) {
+        setError(`Error fetching user profile: ${profileError.message}`)
         await supabase.auth.signOut()
         setIsLoading(false)
         return
       }
 
-      router.push("/admin")
-      router.refresh()
-    } catch (err) {
+      if (profileData?.role !== "admin") {
+        setError("Only administrators have access")
+        await supabase.auth.signOut()
+        setIsLoading(false)
+        return
+      }
+
+      // Use window.location for direct navigation
+      window.location.href = '/admin'
+      
+    } catch (err: any) {
       console.error("Login error:", err)
-      setError("Došlo k chybě při přihlašování")
+      setError(`Unexpected error: ${err.message || "Unknown error"}`)
     } finally {
       setIsLoading(false)
     }
@@ -129,7 +132,7 @@ export default function LoginPage() {
                           placeholder="your@email.com"
                           {...field}
                           className="bg-gray-800 border-gray-700"
-                          disabled={isLoading || !isSupabaseConfigured}
+                          disabled={isLoading}
                         />
                       </FormControl>
                       <FormMessage />
@@ -148,7 +151,7 @@ export default function LoginPage() {
                           placeholder="••••••••"
                           {...field}
                           className="bg-gray-800 border-gray-700"
-                          disabled={isLoading || !isSupabaseConfigured}
+                          disabled={isLoading}
                         />
                       </FormControl>
                       <FormMessage />
@@ -158,7 +161,7 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900"
-                  disabled={isLoading || !isSupabaseConfigured}
+                  disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
@@ -177,4 +180,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
