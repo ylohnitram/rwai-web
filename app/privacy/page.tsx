@@ -43,7 +43,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold mb-4">Contact Us</h2>
             <p className="text-gray-300">
               If you have questions or concerns about this Privacy Policy, please contact us at
-              privacy@tokendirectory.com.
+              privacy@rwa-investors.com.
             </p>
           </div>
         </div>
