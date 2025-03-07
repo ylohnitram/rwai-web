@@ -14,44 +14,61 @@ export async function middleware(req: NextRequest) {
 
     if (!supabaseUrl || !supabaseAnonKey) {
       console.log("Supabase environment variables not set")
-      // Allow access anyway - we're not checking auth for now
-      return res
+      // If Supabase is not configured, redirect to the setup page
+      const url = new URL("/setup", req.url)
+      return NextResponse.redirect(url)
     }
 
     try {
-      // Try to authenticate but don't block if it fails
       const supabase = createMiddlewareClient({ req, res })
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
-      if (session) {
-        // Log successful authentication
-        console.log("User authenticated:", session.user.email)
-        
-        try {
-          // Try to check admin role but don't block if it fails
-          const { data: userData } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .single()
-            
-          if (userData?.role === "admin") {
-            console.log("Admin access granted")
-          } else {
-            console.log("User role is not admin:", userData?.role)
-          }
-        } catch (profileError) {
-          console.error("Profile check error:", profileError)
-        }
-      } else {
-        console.log("No session found")
+      if (sessionError) {
+        console.error("Session error:", sessionError)
+        const url = new URL("/login", req.url)
+        return NextResponse.redirect(url)
       }
-    } catch (error) {
-      console.error("Auth middleware error:", error)
+
+      if (!session) {
+        console.log("No session found, redirecting to login")
+        const url = new URL("/login", req.url)
+        return NextResponse.redirect(url)
+      }
+
+      console.log("User authenticated:", session.user.email)
+      
+      try {
+        // Check admin role
+        const { data: userData, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single()
+          
+        if (profileError) {
+          console.error("Profile error:", profileError)
+          const url = new URL("/login", req.url)
+          return NextResponse.redirect(url)
+        }
+        
+        if (userData?.role !== "admin") {
+          console.log("User role is not admin:", userData?.role)
+          const url = new URL("/login", req.url)
+          return NextResponse.redirect(url)
+        }
+        
+        console.log("Admin access granted to:", session.user.email)
+      } catch (profileErr) {
+        console.error("Profile check exception:", profileErr)
+        const url = new URL("/login", req.url)
+        return NextResponse.redirect(url)
+      }
+    } catch (authError) {
+      console.error("Auth middleware error:", authError)
+      // If an error occurs, redirect to the login page
+      const url = new URL("/login", req.url)
+      return NextResponse.redirect(url)
     }
-    
-    // Allow access regardless of auth status (temporary)
-    return res
   }
 
   return res
