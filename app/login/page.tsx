@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Loader2, AlertCircle } from "lucide-react"
+import { Loader2, AlertCircle, CheckCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -20,7 +21,17 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const searchParams = useSearchParams()
+
+  // Check if user was just signed out
+  useEffect(() => {
+    const signedOut = searchParams.get("signedout")
+    if (signedOut === "true") {
+      setSuccess("You have been successfully signed out")
+    }
+  }, [searchParams])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -33,6 +44,7 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     setError(null)
+    setSuccess(null)
 
     try {
       const supabase = getSupabaseClient()
@@ -78,6 +90,14 @@ export default function LoginPage() {
                 <AlertCircle className="h-4 w-4 mr-2" />
                 <AlertTitle>Login Error</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {success && (
+              <Alert className="mb-6 bg-green-900/30 border-green-800 text-green-300">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                <AlertTitle>Success</AlertTitle>
+                <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
 

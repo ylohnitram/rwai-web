@@ -23,14 +23,31 @@ export default function AdminPage() {
     setPendingProjects((prev) => prev.filter((project) => project.id !== id))
   }
 
-  // Handle sign out
+  // Handle sign out with thorough session cleanup
   const handleSignOut = async () => {
     setIsSigningOut(true)
     try {
       const supabase = getSupabaseClient()
-      await supabase.auth.signOut()
-      // Force navigation to home page
-      window.location.href = '/'
+      
+      // Complete server-side sign out
+      await supabase.auth.signOut({ scope: 'global' })
+      
+      // Clear any cookies or local storage
+      document.cookie.split(";").forEach((cookie) => {
+        const [name] = cookie.trim().split("=")
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+      })
+      
+      // Clear local storage items related to auth
+      localStorage.removeItem('supabase.auth.token')
+      localStorage.removeItem('supabase.auth.expires_at')
+      localStorage.removeItem('supabase.auth.refresh_token')
+      
+      // Clear session storage as well
+      sessionStorage.clear()
+      
+      // Force a full page reload to ensure all state is cleared
+      window.location.href = '/login?signedout=true'
     } catch (error) {
       console.error("Error signing out:", error)
       setIsSigningOut(false)
