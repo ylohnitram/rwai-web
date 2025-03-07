@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Check, X } from "lucide-react"
+import { Check, X, LogOut } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 import { Button } from "@/components/ui/button"
@@ -9,9 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { projects } from "@/data/projects"
+import { getSupabaseClient } from "@/lib/supabase"
 
 export default function AdminPage() {
   const [pendingProjects, setPendingProjects] = useState(projects.filter((project) => !project.approved))
+  const [isSigningOut, setIsSigningOut] = useState(false)
 
   const approveProject = (id: string) => {
     setPendingProjects((prev) => prev.filter((project) => project.id !== id))
@@ -21,10 +23,30 @@ export default function AdminPage() {
     setPendingProjects((prev) => prev.filter((project) => project.id !== id))
   }
 
+  // Handle sign out
+  const handleSignOut = async () => {
+    setIsSigningOut(true)
+    try {
+      const supabase = getSupabaseClient()
+      await supabase.auth.signOut()
+      // Force navigation to home page
+      window.location.href = '/'
+    } catch (error) {
+      console.error("Error signing out:", error)
+      setIsSigningOut(false)
+    }
+  }
+
   // Calculate statistics
   const totalProjects = projects.length
   const approvedProjects = projects.filter((project) => project.approved).length
   const pendingCount = pendingProjects.length
+
+  // Calculate average ROI with proper formatting (4 decimal places)
+  const averageRoi = (
+    projects.filter((p) => p.approved).reduce((acc, project) => acc + project.roi, 0) / 
+    (approvedProjects || 1)
+  ).toFixed(4)
 
   // Count projects by blockchain
   const blockchainCounts = projects.reduce(
@@ -60,9 +82,20 @@ export default function AdminPage() {
 
   return (
     <div className="container py-8 px-4 md:px-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tighter mb-2">Admin Dashboard</h1>
-        <p className="text-gray-400">Manage directory projects and view platform statistics</p>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tighter mb-2">Admin Dashboard</h1>
+          <p className="text-gray-400">Manage directory projects and view platform statistics</p>
+        </div>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2 border-gray-700 hover:border-red-500 hover:text-red-500"
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+        >
+          <LogOut className="h-4 w-4" />
+          {isSigningOut ? "Signing Out..." : "Sign Out"}
+        </Button>
       </div>
 
       {/* Statistics Cards */}
@@ -97,9 +130,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold text-blue-500">
-              {projects.filter((p) => p.approved).reduce((acc, project) => acc + project.roi, 0) / approvedProjects ||
-                0}
-              %
+              {averageRoi}%
             </div>
           </CardContent>
         </Card>
@@ -171,7 +202,7 @@ export default function AdminPage() {
                       <TableCell>{project.type}</TableCell>
                       <TableCell>{project.blockchain}</TableCell>
                       <TableCell>
-                        <Badge className="bg-blue-600 hover:bg-blue-700">{project.roi}%</Badge>
+                        <Badge className="bg-blue-600 hover:bg-blue-700">{project.roi.toFixed(2)}%</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -200,4 +231,3 @@ export default function AdminPage() {
     </div>
   )
 }
-
