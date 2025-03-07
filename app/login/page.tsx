@@ -8,65 +8,52 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Function to directly navigate to admin without authentication
-  const handleDirectAccess = () => {
-    setIsLoading(true)
-    // Use setTimeout to simulate loading
-    setTimeout(() => {
-      window.location.href = '/admin'
-    }, 1000)
-  }
-
   return (
     <div className="container flex items-center justify-center min-h-[calc(100vh-170px)] py-8">
       <div className="w-full max-w-md">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-2xl">Admin Login</CardTitle>
-            <CardDescription>Sign in to manage TokenDirectory</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert className="mb-6 bg-red-900/30 border-red-800 text-red-300">
-                <AlertCircle className="h-4 w-4 mr-2" />
-                <AlertTitle>Login Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+        <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-2xl font-bold mb-1">Admin Login</h2>
+            <p className="text-gray-400 mb-6">Sign in to manage TokenDirectory</p>
+            
+            <div className="bg-amber-900/30 border border-amber-800 rounded-md p-4 mb-6">
+              <p className="text-amber-300 font-medium mb-1">Authentication Temporarily Disabled</p>
+              <p className="text-amber-200">
+                Authentication service is undergoing maintenance. Use the links below for direct access.
+              </p>
+            </div>
 
-            <div className="space-y-6">
-              <Alert className="bg-amber-900/30 border-amber-800 text-amber-300">
-                <AlertCircle className="h-4 w-4 mr-2" />
-                <AlertTitle>Authentication Temporarily Disabled</AlertTitle>
-                <AlertDescription>
-                  Authentication service is undergoing maintenance. You can use the direct access button below.
-                </AlertDescription>
-              </Alert>
-
-              <Button
-                onClick={handleDirectAccess}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-gray-900"
-                disabled={isLoading}
+            <div className="space-y-4">
+              <a 
+                href="/admin" 
+                className="block w-full bg-amber-500 hover:bg-amber-600 text-gray-900 py-2 px-4 rounded text-center font-medium"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Accessing Admin...
-                  </>
-                ) : (
-                  "Direct Admin Access"
-                )}
-              </Button>
+                Direct Admin Access
+              </a>
               
-              <div className="text-center text-sm text-gray-400 pt-4">
+              <a 
+                href="/admin" 
+                target="_blank" 
+                className="block w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-center font-medium"
+              >
+                Open in New Tab
+              </a>
+              
+              <form action="/admin" method="get" className="mt-4">
+                <button 
+                  type="submit" 
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded font-medium"
+                >
+                  Form Submit to Admin
+                </button>
+              </form>
+              
+              <div className="mt-4 text-center text-sm text-gray-400">
                 <p>If you continue to experience issues, please contact the system administrator.</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )
