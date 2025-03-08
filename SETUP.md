@@ -40,7 +40,18 @@ This documentation describes the process of setting up Supabase for the TokenDir
 4. For server operations, also copy the "service_role" key to the variable
    - `SUPABASE_SERVICE_ROLE_KEY`
 
-## 6. Testing
+## 6. Geolocation Detection
+
+The application uses IP-based geolocation to display region-specific compliance notices. To enable this feature:
+
+1. Sign up for an account at [IPInfo.io](https://ipinfo.io/) or a similar geolocation service
+2. Obtain an API token
+3. Add the API token to your environment variables:
+
+```env
+IPINFO_TOKEN=your_api_token_here
+
+## 7. Testing
 
 1. Run the application
 2. Go to /login and sign in with the administrator account

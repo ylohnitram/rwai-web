@@ -195,7 +195,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           auditVerified={true} 
         />
         <GeolocationWarning />
-        <LegalDisclaimer />
       </div>
     </div>
   )
