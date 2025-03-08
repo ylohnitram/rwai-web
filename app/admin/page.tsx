@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Check, X, LogOut, FileEdit } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { useToast } from "@/hooks/use-toast" 
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -15,6 +16,7 @@ import { Project } from "@/types/project"
 import { approveProject, rejectProject, requestChanges } from "../actions"
 
 export default function AdminPage() {
+  const { toast } = useToast()
   const [pendingProjects, setPendingProjects] = useState<Project[]>([])
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -165,6 +167,11 @@ export default function AdminPage() {
         setDistribution(distributionData);
       } catch (error) {
         console.error("Error loading admin data:", error);
+        toast({
+          title: "Error loading data",
+          description: "Failed to load dashboard data. Please refresh the page.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -193,10 +200,18 @@ export default function AdminPage() {
         pending: prevStats.pending - 1
       }));
       
-      alert("Project approved successfully");
+      toast({
+        title: "Project approved",
+        description: "The project has been successfully approved and is now listed in the directory.",
+        variant: "default",
+      });
     } catch (error) {
       console.error("Error approving project:", error);
-      alert(`Failed to approve project: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast({
+        title: "Approval failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -223,10 +238,18 @@ export default function AdminPage() {
         rejected: (prevStats.rejected || 0) + 1
       }));
       
-      alert("Project rejected successfully");
+      toast({
+        title: "Project rejected",
+        description: "The project has been rejected and will not be listed in the directory.",
+        variant: "default",
+      });
     } catch (error) {
       console.error("Error rejecting project:", error);
-      alert(`Failed to reject project: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast({
+        title: "Rejection failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -240,7 +263,11 @@ export default function AdminPage() {
 
   const handleRequestChanges = async () => {
     if (!selectedProjectId || !requestNotes.trim()) {
-      alert("Please provide feedback notes before submitting");
+      toast({
+        title: "Input required",
+        description: "Please provide feedback notes before submitting",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -266,10 +293,18 @@ export default function AdminPage() {
         pending: prevStats.pending - 1
       }));
       
-      alert("Changes requested successfully");
+      toast({
+        title: "Changes requested",
+        description: "Feedback has been sent to the project owner.",
+        variant: "default",
+      });
     } catch (error) {
       console.error("Error requesting changes:", error);
-      alert(`Failed to request changes: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast({
+        title: "Request failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -298,10 +333,23 @@ export default function AdminPage() {
       // Clear session storage as well
       sessionStorage.clear()
       
+      toast({
+        title: "Signed out",
+        description: "You have been successfully signed out.",
+        variant: "default",
+      });
+      
       // Force a full page reload to ensure all state is cleared
-      window.location.href = '/login?signedout=true'
+      setTimeout(() => {
+        window.location.href = '/login?signedout=true'
+      }, 1000)
     } catch (error) {
       console.error("Error signing out:", error)
+      toast({
+        title: "Sign out failed",
+        description: "There was a problem signing you out. Please try again.",
+        variant: "destructive",
+      });
       setIsSigningOut(false)
     }
   }
