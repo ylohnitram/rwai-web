@@ -1,23 +1,23 @@
-// app/admin/page.tsx
 'use client'
 
 import { useState, useEffect } from "react"
-import { Check, X, LogOut, FileEdit, Clock } from "lucide-react"
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { LogOut } from "lucide-react"
 import { useToast } from "@/hooks/use-toast" 
 
 import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { getSupabaseClient } from "@/lib/supabase"
 import { Project } from "@/types/project"
 import { approveProject, rejectProject, requestChanges } from "../actions"
 import { Toaster } from "@/components/ui/toaster"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getSupabaseClient } from "@/lib/supabase"
+
+// Import our new components
+import { StatsCards } from "@/components/admin/stats-cards"
+import { DistributionCharts } from "@/components/admin/distribution-charts"
+import { PendingProjectsTable } from "@/components/admin/pending-projects-table"
+import { AuditLog } from "@/components/admin/audit-log"
+import { ProjectDetailsDrawer } from "@/components/admin/project-details-drawer"
+import { RequestChangesDialog } from "@/components/admin/request-changes-dialog"
 
 export default function AdminPage() {
   const { toast } = useToast()
@@ -40,6 +40,11 @@ export default function AdminPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [requestNotes, setRequestNotes] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // For project details drawer
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null)
   
   // For audit log
   const [auditLog, setAuditLog] = useState<Array<{
@@ -67,7 +72,7 @@ export default function AdminPage() {
         return [];
       }
       
-      console.log("Fetched pending projects:", data); // Debug log
+      console.log("Fetched pending projects:", data);
       return data as Project[];
     } catch (error) {
       console.error("Error fetching pending projects:", error);
@@ -107,7 +112,7 @@ export default function AdminPage() {
         ? parseFloat((roiData.reduce((sum, project) => sum + (project.roi || 0), 0) / roiData.length).toFixed(1))
         : 0;
 
-      console.log("Stats:", { total, approved, pending, averageRoi }); // Debug log
+      console.log("Stats:", { total, approved, pending, averageRoi });
       
       return { 
         total: total || 0, 
@@ -185,6 +190,29 @@ export default function AdminPage() {
     }
   };
 
+  // Open project details drawer
+  const openProjectDetails = async (project: Project) => {
+    setSelectedProject(project);
+    setIsDetailsOpen(true);
+    
+    // If the project has an audit document, get a URL for it
+    if (project.audit_document_path) {
+      try {
+        const supabase = getSupabaseClient();
+        const { data } = supabase.storage
+          .from('audit-documents')
+          .getPublicUrl(project.audit_document_path);
+        
+        setDocumentUrl(data.publicUrl);
+      } catch (error) {
+        console.error('Error getting document URL:', error);
+        setDocumentUrl(null);
+      }
+    } else {
+      setDocumentUrl(null);
+    }
+  };
+
   // Add this function to refresh stats after any action
   const refreshStats = async () => {
     try {
@@ -200,6 +228,13 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Error refreshing stats:", error);
     }
+  };
+
+  // Open request changes dialog
+  const openRequestChangesDialog = (id: string) => {
+    setSelectedProjectId(id);
+    setRequestNotes("");
+    setRequestChangesOpen(true);
   };
 
   // Load data on component mount
@@ -321,12 +356,6 @@ export default function AdminPage() {
     }
   };
 
-  const openRequestChangesDialog = (id: string) => {
-    setSelectedProjectId(id);
-    setRequestNotes("");
-    setRequestChangesOpen(true);
-  };
-
   const handleRequestChanges = async () => {
     if (!selectedProjectId || !requestNotes.trim()) {
       toast({
@@ -423,11 +452,6 @@ export default function AdminPage() {
     }
   }
 
-  // Format date for display
-  const formatDate = (isoDate: string) => {
-    return new Date(isoDate).toLocaleString();
-  };
-
   if (isLoading) {
     return (
       <div className="container py-8 px-4 md:px-6 text-center">
@@ -455,43 +479,13 @@ export default function AdminPage() {
         </Button>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Total Projects</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Approved Projects</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-green-500">{stats.approved}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Pending Review</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-yellow-500">{stats.pending}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Average ROI</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-blue-500">
-              {stats.averageRoi}%
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats Cards */}
+      <StatsCards 
+        total={stats.total}
+        approved={stats.approved}
+        pending={stats.pending}
+        averageRoi={stats.averageRoi}
+      />
 
       {/* Tabs for Projects and Audit Log */}
       <Tabs defaultValue="projects" className="mb-8">
@@ -502,199 +496,49 @@ export default function AdminPage() {
         
         <TabsContent value="projects">
           {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader>
-                <CardTitle>Projects by Blockchain</CardTitle>
-                <CardDescription>Distribution of approved projects</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={distribution.byBlockchain}>
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip contentStyle={{ backgroundColor: "#1f2937", borderColor: "#374151", color: "white" }} />
-                      <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader>
-                <CardTitle>Projects by Asset Type</CardTitle>
-                <CardDescription>Distribution of approved projects</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={distribution.byAssetType}>
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip contentStyle={{ backgroundColor: "#1f2937", borderColor: "#374151", color: "white" }} />
-                      <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <DistributionCharts 
+            byBlockchain={distribution.byBlockchain}
+            byAssetType={distribution.byAssetType}
+          />
 
           {/* Pending Projects Table */}
-          <Card className="bg-gray-900 border-gray-800">
-            <CardHeader>
-              <CardTitle>Pending Projects</CardTitle>
-              <CardDescription>Review and approve new project submissions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {pendingProjects.length > 0 ? (
-                <div className="rounded-md border border-gray-800 overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-gray-900">
-                      <TableRow className="hover:bg-gray-800 border-gray-800">
-                        <TableHead className="font-medium">Project Name</TableHead>
-                        <TableHead className="font-medium">Asset Type</TableHead>
-                        <TableHead className="font-medium">Blockchain</TableHead>
-                        <TableHead className="font-medium">ROI</TableHead>
-                        <TableHead className="font-medium">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingProjects.map((project) => (
-                        <TableRow key={project.id} className="hover:bg-gray-800 border-gray-800">
-                          <TableCell className="font-medium">{project.name}</TableCell>
-                          <TableCell>{project.type}</TableCell>
-                          <TableCell>{project.blockchain}</TableCell>
-                          <TableCell>
-                            <Badge className="bg-blue-600 hover:bg-blue-700">{project.roi.toFixed(2)}%</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleApproveProject(project.id)}
-                                disabled={isProcessing}
-                              >
-                                <Check className="h-4 w-4 mr-1" /> Approve
-                              </Button>
-                              <Button 
-                                size="sm"
-                                variant="outline"
-                                className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
-                                onClick={() => openRequestChangesDialog(project.id)}
-                                disabled={isProcessing}
-                              >
-                                <FileEdit className="h-4 w-4 mr-1" /> Request Changes
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="destructive" 
-                                onClick={() => handleRejectProject(project.id)}
-                                disabled={isProcessing}
-                              >
-                                <X className="h-4 w-4 mr-1" /> Reject
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-400">No pending projects to review</div>
-              )}
-            </CardContent>
-          </Card>
+          <PendingProjectsTable 
+            projects={pendingProjects}
+            isProcessing={isProcessing}
+            onViewDetails={openProjectDetails}
+            onApprove={handleApproveProject}
+            onRequestChanges={openRequestChangesDialog}
+            onReject={handleRejectProject}
+          />
         </TabsContent>
         
         <TabsContent value="audit">
           {/* Audit Log */}
-          <Card className="bg-gray-900 border-gray-800">
-            <CardHeader>
-              <CardTitle>Audit Log</CardTitle>
-              <CardDescription>History of admin actions on projects</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {auditLog.length > 0 ? (
-                <ScrollArea className="h-[500px]">
-                  <div className="space-y-4">
-                    {auditLog.map((entry) => (
-                      <div 
-                        key={entry.id} 
-                        className={`p-4 rounded-md border ${
-                          entry.action === "approved" 
-                            ? "bg-green-900/20 border-green-700" 
-                            : entry.action === "rejected"
-                            ? "bg-red-900/20 border-red-700"
-                            : "bg-amber-900/20 border-amber-700"
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="text-lg font-medium">
-                            {entry.projectName}
-                          </div>
-                          <Badge 
-                            className={
-                              entry.action === "approved" 
-                                ? "bg-green-600" 
-                                : entry.action === "rejected"
-                                ? "bg-red-600"
-                                : "bg-amber-600"
-                            }
-                          >
-                            {entry.action.charAt(0).toUpperCase() + entry.action.slice(1)}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center text-sm text-gray-400 mb-1">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {formatDate(entry.timestamp)}
-                        </div>
-                        {entry.notes && (
-                          <div className="mt-2 p-2 bg-gray-800 rounded border border-gray-700 text-gray-300">
-                            <p className="text-sm font-medium mb-1">Feedback Notes:</p>
-                            <p className="text-sm">{entry.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center py-8 text-gray-400">No admin actions recorded yet</div>
-              )}
-            </CardContent>
-          </Card>
+          <AuditLog logEntries={auditLog} />
         </TabsContent>
       </Tabs>
 
+      {/* Project Details Drawer */}
+      <ProjectDetailsDrawer 
+        project={selectedProject}
+        isOpen={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        documentUrl={documentUrl}
+        isProcessing={isProcessing}
+        onApprove={handleApproveProject}
+        onRequestChanges={openRequestChangesDialog}
+        onReject={handleRejectProject}
+      />
+
       {/* Request Changes Dialog */}
-      <Dialog open={requestChangesOpen} onOpenChange={setRequestChangesOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800">
-          <DialogHeader>
-            <DialogTitle>Request Changes</DialogTitle>
-            <DialogDescription>
-              Provide feedback to the project owner about what needs to be changed.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            placeholder="Enter your feedback here..."
-            className="min-h-[150px] bg-gray-800 border-gray-700"
-            value={requestNotes}
-            onChange={(e) => setRequestNotes(e.target.value)}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRequestChangesOpen(false)} disabled={isProcessing}>
-              Cancel
-            </Button>
-            <Button onClick={handleRequestChanges} disabled={isProcessing}>
-              {isProcessing ? "Sending..." : "Send Feedback"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RequestChangesDialog 
+        isOpen={requestChangesOpen}
+        onOpenChange={setRequestChangesOpen}
+        requestNotes={requestNotes}
+        onNotesChange={setRequestNotes}
+        onSubmit={handleRequestChanges}
+        isProcessing={isProcessing}
+      />
     </div>
   )
 }
