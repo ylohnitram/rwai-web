@@ -1,21 +1,25 @@
 'use server'
 
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { revalidatePath } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
+import { revalidatePath } from 'next/cache'
 
-// Create a Supabase admin client that bypasses RLS
+// Create a Supabase admin client with the service role key
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 )
 
 export async function approveProject(id: string) {
   try {
     console.log(`Approving project ${id} with server action`)
     
-    // Use the admin client instead of the server component client
+    // Update the project with the admin client
     const { data, error } = await supabaseAdmin
       .from('projects')
       .update({ 
@@ -45,7 +49,7 @@ export async function rejectProject(id: string) {
   try {
     console.log(`Rejecting project ${id} with server action`)
     
-    // Use the admin client instead of the server component client
+    // Update the project with the admin client
     const { data, error } = await supabaseAdmin
       .from('projects')
       .update({ 
@@ -79,7 +83,7 @@ export async function requestChanges(id: string, notes: string) {
       return { success: false, error: 'Notes are required for requesting changes' }
     }
     
-    // Use the admin client instead of the server component client
+    // Update the project with the admin client
     const { data, error } = await supabaseAdmin
       .from('projects')
       .update({ 
