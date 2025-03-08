@@ -173,15 +173,25 @@ export default function AdminPage() {
 
   const handleApproveProject = async (id: string) => {
     try {
-      // Call the admin API endpoint
-      const response = await fetch(`/api/admin/projects/${id}/approve`, {
+      console.log(`Approving project ${id} using direct API`);
+      
+      // Use the direct update API instead
+      const response = await fetch(`/api/admin/projects/direct-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          id,
+          action: 'approve'
+        }),
       });
       
+      // Log the raw response for debugging
+      console.log(`Response status: ${response.status}`);
+      
       const result = await response.json();
+      console.log('Response data:', result);
       
       if (!response.ok) {
         throw new Error(result.error || 'Failed to approve project');
@@ -197,23 +207,36 @@ export default function AdminPage() {
         approved: prevStats.approved + 1,
         pending: prevStats.pending - 1
       }));
+      
+      // Show success message
+      alert("Project approved successfully");
     } catch (error) {
       console.error("Error approving project:", error);
-      alert("Failed to approve project. Please try again.");
+      alert(`Failed to approve project: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
   const handleRejectProject = async (id: string) => {
     try {
-      // Call the admin API endpoint
-      const response = await fetch(`/api/admin/projects/${id}/reject`, {
+      console.log(`Rejecting project ${id} using direct API`);
+      
+      // Use the direct update API instead
+      const response = await fetch(`/api/admin/projects/direct-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          id,
+          action: 'reject'
+        }),
       });
       
+      // Log the raw response for debugging
+      console.log(`Response status: ${response.status}`);
+      
       const result = await response.json();
+      console.log('Response data:', result);
       
       if (!response.ok) {
         throw new Error(result.error || 'Failed to reject project');
@@ -225,12 +248,17 @@ export default function AdminPage() {
       // Update stats
       setStats(prevStats => ({
         ...prevStats,
-        total: prevStats.total - 1,
-        pending: prevStats.pending - 1
+        total: prevStats.total,
+        approved: prevStats.approved,
+        pending: prevStats.pending - 1,
+        rejected: (prevStats.rejected || 0) + 1
       }));
+      
+      // Show success message
+      alert("Project rejected successfully");
     } catch (error) {
       console.error("Error rejecting project:", error);
-      alert("Failed to reject project. Please try again.");
+      alert(`Failed to reject project: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
@@ -247,34 +275,45 @@ export default function AdminPage() {
     }
 
     try {
-      console.log(`Requesting changes for project ${selectedProjectId} with notes: ${requestNotes}`);
-    
-      // Call the admin API endpoint
-      const response = await fetch(`/api/admin/projects/${selectedProjectId}/request-changes`, {
+      console.log(`Requesting changes for project ${selectedProjectId} with notes: ${requestNotes} using direct API`);
+      
+      // Use the direct update API instead
+      const response = await fetch(`/api/admin/projects/direct-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          requestNotes: requestNotes  // Make sure the parameter name matches what the API expects
+        body: JSON.stringify({
+          id: selectedProjectId,
+          action: 'request-changes',
+          notes: requestNotes
         }),
       });
-    
+      
       // Log the raw response for debugging
       console.log(`Response status: ${response.status}`);
-    
+      
       const result = await response.json();
       console.log('Response data:', result);
-    
+      
       if (!response.ok) {
         throw new Error(result.error || 'Failed to request changes');
       }
-    
+      
       // Close dialog and reset fields
       setRequestChangesOpen(false);
       setSelectedProjectId(null);
       setRequestNotes("");
-    
+      
+      // Update the UI - optionally remove from pending list
+      setPendingProjects((prev) => prev.filter((project) => project.id !== selectedProjectId));
+      
+      // Update stats
+      setStats(prevStats => ({
+        ...prevStats,
+        pending: prevStats.pending - 1
+      }));
+      
       // Show success message
       alert("Changes requested successfully");
     } catch (error) {
