@@ -5,9 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import DirectoryFilters from "@/components/directory-filters"
 import Pagination from "@/components/pagination"
+import { projects } from "@/data/projects"
 import Breadcrumbs from "@/components/breadcrumbs"
 import LegalDisclaimer from "@/components/legal-disclaimer"
-import { getProjects } from "@/lib/services/project-service"
 
 interface DirectoryPageProps {
   searchParams: {
@@ -24,27 +24,25 @@ export const metadata = {
   description: "Browse and filter tokenized real-world assets from our curated directory of audited RWA investment projects.",
 }
 
-export default async function DirectoryPage({ searchParams }: DirectoryPageProps) {
+export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
   const page = Number.parseInt(searchParams.page || "1")
-  const assetType = searchParams.assetType || undefined
-  const blockchain = searchParams.blockchain || undefined
-  const minRoi = searchParams.minRoi ? Number.parseFloat(searchParams.minRoi) : undefined
-  const maxRoi = searchParams.maxRoi ? Number.parseFloat(searchParams.maxRoi) : undefined
+  const assetType = searchParams.assetType || ""
+  const blockchain = searchParams.blockchain || ""
+  const minRoi = Number.parseFloat(searchParams.minRoi || "0")
+  const maxRoi = Number.parseFloat(searchParams.maxRoi || "30")
 
-  const projectsPerPage = 10
-  
-  // Fetch projects from the database
-  const { data: projects, count: totalCount } = await getProjects({
-    page,
-    limit: projectsPerPage,
-    assetType,
-    blockchain,
-    minRoi,
-    maxRoi,
-    approved: true,
+  // In a real app, this would be an API call
+  const filteredProjects = projects.filter((project) => {
+    const matchesAssetType = assetType === "" || project.type === assetType
+    const matchesBlockchain = blockchain === "" || project.blockchain === blockchain
+    const matchesRoi = project.roi >= minRoi && project.roi <= maxRoi
+    return matchesAssetType && matchesBlockchain && matchesRoi && project.approved
   })
 
-  const totalPages = Math.ceil(totalCount / projectsPerPage)
+  const projectsPerPage = 10
+  const totalPages = Math.ceil(filteredProjects.length / projectsPerPage)
+  const startIndex = (page - 1) * projectsPerPage
+  const currentProjects = filteredProjects.slice(startIndex, startIndex + projectsPerPage)
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0F172A] text-white">
@@ -79,8 +77,8 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.length > 0 ? (
-                projects.map((project) => (
+              {currentProjects.length > 0 ? (
+                currentProjects.map((project) => (
                   <TableRow key={project.id} className="hover:bg-gray-800 border-gray-800">
                     <TableCell className="font-medium">{project.name}</TableCell>
                     <TableCell>{project.type}</TableCell>
@@ -90,7 +88,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
                     </TableCell>
                     <TableCell className="text-right">
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/projects/${project.id}`}>View</Link>
+                        <Link href={`/projects/${project.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}`}>View</Link>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -107,7 +105,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
         </div>
 
         {/* Pagination */}
-        {totalCount > 0 && (
+        {filteredProjects.length > 0 && (
           <div className="mt-6">
             <Pagination totalPages={totalPages} />
           </div>

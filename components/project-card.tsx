@@ -12,6 +12,9 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({ name, type, blockchain, roi, id }: ProjectCardProps) {
+  // Generate slug from project name
+  const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+  
   return (
     <Card className="bg-gray-900/60 border-gray-800 backdrop-blur-sm hover:border-amber-500/30 transition-all overflow-hidden">
       <CardHeader className="pb-2">
@@ -38,10 +41,9 @@ export default function ProjectCard({ name, type, blockchain, roi, id }: Project
           variant="outline"
           className="w-full border-gray-700 hover:border-amber-500 hover:text-amber-500"
         >
-          <Link href={`/projects/${id}`}>View Details</Link>
+          <Link href={`/projects/${slug}`}>View Details</Link>
         </Button>
       </CardFooter>
     </Card>
   )
 }
-
