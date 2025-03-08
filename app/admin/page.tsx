@@ -1,24 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Check, X, LogOut } from "lucide-react"
+import { Check, X, LogOut, FileEdit } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { getSupabaseClient } from "@/lib/supabase"
 import { Project } from "@/types/project"
-import { 
-  getProjects, 
-  getProjectStats, 
-  getProjectDistribution
-} from "@/lib/services/project-service"
 
 export default function AdminPage() {
   const [pendingProjects, setPendingProjects] = useState<Project[]>([])
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState({
     total: 0,
     approved: 0,
@@ -29,7 +27,120 @@ export default function AdminPage() {
     byBlockchain: [] as { name: string; value: number }[],
     byAssetType: [] as { name: string; value: number }[]
   })
-  const [isLoading, setIsLoading] = useState(true)
+  
+  // For request changes dialog
+  const [requestChangesOpen, setRequestChangesOpen] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [requestNotes, setRequestNotes] = useState("")
+
+  // Directly fetch pending projects from Supabase
+  const fetchPendingProjects = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Get pending projects directly from Supabase
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("approved", false);
+        
+      if (error) {
+        console.error("Error fetching pending projects:", error);
+        return [];
+      }
+      
+      return data as Project[];
+    } catch (error) {
+      console.error("Error fetching pending projects:", error);
+      return [];
+    }
+  };
+
+  // Fetch project stats
+  const fetchProjectStats = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Get total count
+      const { count: total } = await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true });
+
+      // Get approved count
+      const { count: approved } = await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("approved", true);
+
+      // Get pending count
+      const { count: pending } = await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("approved", false);
+
+      // Get average ROI
+      const { data: roiData } = await supabase
+        .from("projects")
+        .select("roi")
+        .eq("approved", true);
+
+      const averageRoi = roiData && roiData.length > 0
+        ? parseFloat((roiData.reduce((sum, project) => sum + (project.roi || 0), 0) / roiData.length).toFixed(1))
+        : 0;
+
+      return { 
+        total: total || 0, 
+        approved: approved || 0, 
+        pending: pending || 0, 
+        averageRoi 
+      };
+    } catch (error) {
+      console.error("Error fetching project stats:", error);
+      return { total: 0, approved: 0, pending: 0, averageRoi: 0 };
+    }
+  };
+
+  // Fetch project distributions
+  const fetchProjectDistribution = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Fetch all approved projects
+      const { data } = await supabase
+        .from("projects")
+        .select("blockchain, type")
+        .eq("approved", true);
+
+      if (!data) {
+        return { byBlockchain: [], byAssetType: [] };
+      }
+
+      // Count by blockchain
+      const blockchainCounts: Record<string, number> = {};
+      
+      // Count by asset type
+      const assetTypeCounts: Record<string, number> = {};
+      
+      data.forEach(project => {
+        if (project.blockchain) {
+          blockchainCounts[project.blockchain] = (blockchainCounts[project.blockchain] || 0) + 1;
+        }
+        
+        if (project.type) {
+          assetTypeCounts[project.type] = (assetTypeCounts[project.type] || 0) + 1;
+        }
+      });
+
+      // Convert to array format for charts
+      const byBlockchain = Object.entries(blockchainCounts).map(([name, value]) => ({ name, value }));
+      const byAssetType = Object.entries(assetTypeCounts).map(([name, value]) => ({ name, value }));
+
+      return { byBlockchain, byAssetType };
+    } catch (error) {
+      console.error("Error fetching project distribution:", error);
+      return { byBlockchain: [], byAssetType: [] };
+    }
+  };
 
   // Load data on component mount
   useEffect(() => {
@@ -37,29 +148,29 @@ export default function AdminPage() {
       setIsLoading(true)
       try {
         // Load pending projects
-        const { data: pendingData } = await getProjects({ approved: false })
-        setPendingProjects(pendingData)
+        const pendingData = await fetchPendingProjects();
+        setPendingProjects(pendingData);
 
         // Load stats
-        const statsData = await getProjectStats()
-        setStats(statsData)
+        const statsData = await fetchProjectStats();
+        setStats(statsData);
 
         // Load distribution data
-        const distributionData = await getProjectDistribution()
-        setDistribution(distributionData)
+        const distributionData = await fetchProjectDistribution();
+        setDistribution(distributionData);
       } catch (error) {
-        console.error("Error loading admin data:", error)
+        console.error("Error loading admin data:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
 
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   const handleApproveProject = async (id: string) => {
     try {
-      // Call the new admin API endpoint instead of using Supabase directly
+      // Call the admin API endpoint
       const response = await fetch(`/api/admin/projects/${id}/approve`, {
         method: 'POST',
         headers: {
@@ -91,7 +202,7 @@ export default function AdminPage() {
 
   const handleRejectProject = async (id: string) => {
     try {
-      // Call the new admin API endpoint instead of using Supabase directly
+      // Call the admin API endpoint
       const response = await fetch(`/api/admin/projects/${id}/reject`, {
         method: 'POST',
         headers: {
@@ -120,7 +231,48 @@ export default function AdminPage() {
     }
   };
 
-  // Handle sign out with thorough session cleanup
+  const openRequestChangesDialog = (id: string) => {
+    setSelectedProjectId(id);
+    setRequestNotes("");
+    setRequestChangesOpen(true);
+  };
+
+  const handleRequestChanges = async () => {
+    if (!selectedProjectId || !requestNotes.trim()) {
+      return;
+    }
+
+    try {
+      // Call the admin API endpoint
+      const response = await fetch(`/api/admin/projects/${selectedProjectId}/request-changes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ requestNotes }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to request changes');
+      }
+      
+      // Close dialog and reset fields
+      setRequestChangesOpen(false);
+      setSelectedProjectId(null);
+      setRequestNotes("");
+      
+      // Update UI if needed (could mark as "changes requested" instead of removing)
+      // For now, we'll just keep it in the list
+      alert("Changes requested successfully");
+    } catch (error) {
+      console.error("Error requesting changes:", error);
+      alert("Failed to request changes. Please try again.");
+    }
+  };
+
+  // Handle sign out
   const handleSignOut = async () => {
     setIsSigningOut(true)
     try {
@@ -293,6 +445,14 @@ export default function AdminPage() {
                             <Check className="h-4 w-4 mr-1" /> Approve
                           </Button>
                           <Button 
+                            size="sm"
+                            variant="outline"
+                            className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
+                            onClick={() => openRequestChangesDialog(project.id)}
+                          >
+                            <FileEdit className="h-4 w-4 mr-1" /> Request Changes
+                          </Button>
+                          <Button 
                             size="sm" 
                             variant="destructive" 
                             onClick={() => handleRejectProject(project.id)}
@@ -311,6 +471,32 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Request Changes Dialog */}
+      <Dialog open={requestChangesOpen} onOpenChange={setRequestChangesOpen}>
+        <DialogContent className="bg-gray-900 border-gray-800">
+          <DialogHeader>
+            <DialogTitle>Request Changes</DialogTitle>
+            <DialogDescription>
+              Provide feedback to the project owner about what needs to be changed.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Enter your feedback here..."
+            className="min-h-[150px] bg-gray-800 border-gray-700"
+            value={requestNotes}
+            onChange={(e) => setRequestNotes(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRequestChangesOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRequestChanges}>
+              Send Feedback
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
