@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowLeft, CheckCircle, ExternalLink, FileText } from "lucide-react"
 import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,8 +13,7 @@ import DocumentWarning from "@/components/document-warning"
 import GeolocationWarning from "@/components/geolocation-warning"
 import LegalDisclaimer from "@/components/legal-disclaimer"
 import RiskSummary from "@/components/risk-summary"
-import { getProjectBySlug, getProjects } from "@/lib/services/project-service"
-import { notFound } from "next/navigation"
+import { getProjects } from "@/lib/services/project-service"
 import TokenCheckResult from "@/components/token-check-result";
 
 interface ProjectPageProps {
@@ -22,43 +22,45 @@ interface ProjectPageProps {
   }
 }
 
-export async function generateStaticParams() {
-  // Fetch all approved projects for static generation
-  const { data: projects } = await getProjects({ approved: true, limit: 100 })
-
-  return projects.map((project) => ({
-    slug: generateSlug(project.name),
-  }))
-}
-
 // Pomocná funkce pro generování slugu z názvu projektu
 function generateSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
-  const project = await getProjectBySlug(params.slug)
+  try {
+    // Get all projects and find the one matching our slug
+    const { data: projects } = await getProjects({ limit: 100 });
+    const project = projects.find(p => generateSlug(p.name) === params.slug);
 
-  if (!project) {
-    return {
-      title: "Project Not Found | TokenDirectory by RWA Investors",
+    if (!project) {
+      return {
+        title: "Project Not Found | TokenDirectory by RWA Investors",
+      }
     }
-  }
 
-  return {
-    title: `${project.name} | TokenDirectory by RWA Investors`,
-    description: project.description,
-    openGraph: {
-      images: [`/api/og?title=${encodeURIComponent(project.name)}`],
-      type: "website",
+    return {
       title: `${project.name} | TokenDirectory by RWA Investors`,
       description: project.description,
-    },
+      openGraph: {
+        images: [`/api/og?title=${encodeURIComponent(project.name)}`],
+        type: "website",
+        title: `${project.name} | TokenDirectory by RWA Investors`,
+        description: project.description,
+      },
+    }
+  } catch (error) {
+    console.error("Error generating metadata:", error);
+    return {
+      title: "Error | TokenDirectory by RWA Investors",
+    }
   }
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
-  const project = await getProjectBySlug(params.slug)
+  // Get all projects and find the one matching our slug
+  const { data: projects } = await getProjects({ limit: 100 });
+  const project = projects.find(p => generateSlug(p.name) === params.slug);
 
   if (!project || !project.approved) {
     notFound()

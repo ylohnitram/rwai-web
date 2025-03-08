@@ -7,7 +7,7 @@ import DirectoryFilters from "@/components/directory-filters"
 import Pagination from "@/components/pagination"
 import Breadcrumbs from "@/components/breadcrumbs"
 import LegalDisclaimer from "@/components/legal-disclaimer"
-import { getProjectsByFilters } from "@/lib/services/project-service"
+import { getProjects } from "@/lib/services/project-service"
 
 interface DirectoryPageProps {
   searchParams: {
@@ -32,14 +32,17 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
   const maxRoi = searchParams.maxRoi ? Number.parseFloat(searchParams.maxRoi) : undefined
 
   const projectsPerPage = 10
-  const { projects: currentProjects, total: totalProjects } = await getProjectsByFilters(
-    assetType, 
-    blockchain, 
-    minRoi, 
-    maxRoi, 
-    page, 
-    projectsPerPage
-  );
+  
+  // Použití správné funkce getProjects místo getProjectsByFilters
+  const { data: currentProjects, count: totalProjects } = await getProjects({
+    page,
+    limit: projectsPerPage,
+    assetType,
+    blockchain,
+    minRoi,
+    maxRoi,
+    approved: true
+  });
   
   const totalPages = Math.ceil(totalProjects / projectsPerPage)
 
