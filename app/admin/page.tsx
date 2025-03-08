@@ -165,8 +165,8 @@ export default function AdminPage() {
         return;
       }
       
-      // Use the API endpoint for project reviews instead of direct service calls
-      const response = await fetch(`/api/admin/projects/${selectedProject.id}/review`, {
+      // Use the service role API endpoint to bypass RLS
+      const response = await fetch(`/api/admin/projects/${selectedProject.id}/service-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,6 +180,7 @@ export default function AdminPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("API error details:", errorData);
         throw new Error(errorData.error || 'Failed to update project');
       }
       
