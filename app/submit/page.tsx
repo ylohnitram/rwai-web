@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import DocumentUpload from "@/components/document-upload"
 import { createProject } from "@/lib/services/project-service"
 
 const formSchema = z.object({
@@ -52,6 +53,8 @@ const formSchema = z.object({
   tvl: z.string().min(1, {
     message: "TVL is required.",
   }),
+  // Optional audit document path
+  auditDocumentPath: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -60,6 +63,7 @@ export default function SubmitPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [auditDocumentUrl, setAuditDocumentUrl] = useState<string | null>(null)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -72,6 +76,11 @@ export default function SubmitPage() {
       tvl: "$0M",
     },
   })
+
+  const handleFileUploaded = (filePath: string, fileUrl: string) => {
+    form.setValue("auditDocumentPath", filePath)
+    setAuditDocumentUrl(fileUrl)
+  }
 
   async function onSubmit(values: FormValues) {
     setIsSubmitting(true)
@@ -88,14 +97,15 @@ export default function SubmitPage() {
         website: values.website,
         tvl: values.tvl,
         // Set default values for database
+        status: 'pending' as const,
         approved: false,
         featured: false,
-        // We can store contact email in a separate field or meta field if needed
-        // For now we'll just log it
-        auditUrl: `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
+        // Store contact email and audit document path
+        contact_email: values.contactEmail,
+        audit_document_path: values.auditDocumentPath,
+        // For backwards compatibility
+        auditUrl: auditDocumentUrl || `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
       }
-
-      console.log("Contact email for project:", values.contactEmail)
       
       // Submit to database
       await createProject(projectData)
@@ -134,6 +144,7 @@ export default function SubmitPage() {
               <Button onClick={() => {
                 setIsSubmitted(false)
                 form.reset()
+                setAuditDocumentUrl(null)
               }}>Submit Another Project</Button>
             </div>
           </CardContent>
@@ -314,6 +325,30 @@ export default function SubmitPage() {
                   )}
                 />
 
+                {/* Audit Document Upload */}
+                <FormField
+                  control={form.control}
+                  name="auditDocumentPath"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>Audit Document</FormLabel>
+                      <FormControl>
+                        <DocumentUpload
+                          onFileUploaded={handleFileUploaded}
+                          label="Audit Report"
+                          description="Upload your project's audit or security review document (PDF recommended)"
+                          bucketName="audit-documents"
+                          filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_audit`}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Providing an audit document can speed up the review process. Accepted formats: PDF, DOC, DOCX.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <Separator className="bg-gray-800" />
 
                 <FormField
@@ -331,7 +366,7 @@ export default function SubmitPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        We'll contact you at this email address regarding your submission.
+                        We'll contact you at this email address regarding your submission and review process.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

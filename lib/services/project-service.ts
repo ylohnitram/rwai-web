@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase";
-import { Project } from "@/types/project";
+import { Project, ProjectReview, ProjectStatus } from "@/types/project";
 
 export async function getProjects(options?: {
   page?: number;
@@ -9,6 +9,7 @@ export async function getProjects(options?: {
   minRoi?: number;
   maxRoi?: number;
   approved?: boolean;
+  status?: ProjectStatus;
 }): Promise<{ data: Project[]; count: number }> {
   const supabase = getSupabaseClient();
   const {
@@ -19,6 +20,7 @@ export async function getProjects(options?: {
     minRoi = 0,
     maxRoi = 100,
     approved,
+    status,
   } = options || {};
 
   const offset = (page - 1) * limit;
@@ -45,8 +47,13 @@ export async function getProjects(options?: {
     query = query.lte("roi", maxRoi);
   }
 
+  // Handle both the old 'approved' field and new 'status' field
   if (approved !== undefined) {
     query = query.eq("approved", approved);
+  }
+
+  if (status !== undefined) {
+    query = query.eq("status", status);
   }
 
   // Apply pagination
@@ -87,11 +94,11 @@ export async function getProjectById(id: string): Promise<Project | null> {
   return data as Project;
 }
 
-// Funkce pro získání projektu podle slugu
+// Function to get project by slug
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   const { data: projects } = await getProjects({ limit: 100 });
   
-  // Pomocná funkce pro generování slugu z názvu projektu
+  // Helper function to generate slug from project name
   function generateSlug(name: string): string {
     return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   }
@@ -123,7 +130,7 @@ export async function getFeaturedProjects(limit: number = 3): Promise<Project[]>
   const { data, error } = await supabase
     .from("projects")
     .select("*")
-    .eq("approved", true)
+    .eq("status", "approved")
     .eq("featured", true)
     .limit(limit);
 
@@ -138,9 +145,15 @@ export async function getFeaturedProjects(limit: number = 3): Promise<Project[]>
 export async function createProject(project: Omit<Project, 'id'>): Promise<Project> {
   const supabase = getSupabaseClient();
   
+  // Ensure we set the initial status to pending
+  const projectWithStatus = {
+    ...project,
+    status: 'pending' as ProjectStatus,
+  };
+  
   const { data, error } = await supabase
     .from("projects")
-    .insert(project)
+    .insert(projectWithStatus)
     .select()
     .single();
 
@@ -170,28 +183,90 @@ export async function updateProject(id: string, updates: Partial<Project>): Prom
   return data as Project;
 }
 
-export async function approveProject(id: string): Promise<Project> {
-  return updateProject(id, { approved: true });
-}
-
-export async function rejectProject(id: string): Promise<void> {
+// Enhanced review functions
+export async function reviewProject(
+  id: string, 
+  review: ProjectReview
+): Promise<Project> {
   const supabase = getSupabaseClient();
   
-  const { error } = await supabase
+  // Get current user session for reviewer ID
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    throw new Error("No active session found. Please log in.");
+  }
+  
+  // Add reviewer info and timestamp
+  const reviewData = {
+    ...review,
+    reviewer_id: session.user.id,
+    reviewed_at: new Date().toISOString(),
+  };
+  
+  // Update the project
+  const { data, error } = await supabase
     .from("projects")
-    .delete()
-    .eq("id", id);
+    .update(reviewData)
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) {
-    console.error("Error rejecting project:", error);
-    throw new Error(`Error rejecting project: ${error.message}`);
+    console.error("Error reviewing project:", error);
+    throw new Error(`Error reviewing project: ${error.message}`);
   }
+
+  return data as Project;
+}
+
+export async function approveProject(id: string, notes?: string): Promise<Project> {
+  return reviewProject(id, { 
+    id,
+    status: 'approved', 
+    review_notes: notes 
+  });
+}
+
+export async function rejectProject(id: string, notes?: string): Promise<Project> {
+  return reviewProject(id, { 
+    id,
+    status: 'rejected', 
+    review_notes: notes 
+  });
+}
+
+export async function requestChanges(id: string, notes: string): Promise<Project> {
+  if (!notes || notes.trim() === '') {
+    throw new Error("Notes are required when requesting changes");
+  }
+  
+  return reviewProject(id, { 
+    id,
+    status: 'changes_requested', 
+    review_notes: notes 
+  });
+}
+
+export async function getProjectsByStatus(status: ProjectStatus, limit: number = 10): Promise<Project[]> {
+  const { data } = await getProjects({ 
+    status, 
+    limit,
+  });
+  
+  return data;
+}
+
+export async function getPendingProjects(limit: number = 10): Promise<Project[]> {
+  return getProjectsByStatus('pending', limit);
 }
 
 export async function getProjectStats(): Promise<{
   total: number;
   approved: number;
   pending: number;
+  rejected: number;
+  changesRequested: number;
   averageRoi: number;
 }> {
   const supabase = getSupabaseClient();
@@ -206,33 +281,35 @@ export async function getProjectStats(): Promise<{
     throw new Error(`Error fetching total projects: ${totalError.message}`);
   }
 
-  // Get approved count
-  const { count: approved, error: approvedError } = await supabase
+  // Get counts by status
+  const { data: statusCounts, error: statusError } = await supabase
     .from("projects")
-    .select("*", { count: "exact", head: true })
-    .eq("approved", true);
+    .select("status");
 
-  if (approvedError) {
-    console.error("Error fetching approved projects:", approvedError);
-    throw new Error(`Error fetching approved projects: ${approvedError.message}`);
+  if (statusError) {
+    console.error("Error fetching project statuses:", statusError);
+    throw new Error(`Error fetching project statuses: ${statusError.message}`);
   }
 
-  // Get pending count
-  const { count: pending, error: pendingError } = await supabase
-    .from("projects")
-    .select("*", { count: "exact", head: true })
-    .eq("approved", false);
+  // Count each status
+  const counts = {
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+    changes_requested: 0
+  };
 
-  if (pendingError) {
-    console.error("Error fetching pending projects:", pendingError);
-    throw new Error(`Error fetching pending projects: ${pendingError.message}`);
-  }
+  statusCounts.forEach(project => {
+    if (project.status) {
+      counts[project.status as keyof typeof counts]++;
+    }
+  });
 
   // Get average ROI
   const { data: roiData, error: roiError } = await supabase
     .from("projects")
     .select("roi")
-    .eq("approved", true);
+    .eq("status", "approved");
 
   if (roiError) {
     console.error("Error fetching ROI data:", roiError);
@@ -243,7 +320,14 @@ export async function getProjectStats(): Promise<{
     ? parseFloat((roiData.reduce((sum, project) => sum + (project.roi || 0), 0) / roiData.length).toFixed(4))
     : 0;
 
-  return { total: total || 0, approved: approved || 0, pending: pending || 0, averageRoi };
+  return { 
+    total: total || 0, 
+    approved: counts.approved, 
+    pending: counts.pending,
+    rejected: counts.rejected,
+    changesRequested: counts.changes_requested,
+    averageRoi 
+  };
 }
 
 export async function getProjectDistribution(): Promise<{
@@ -256,7 +340,7 @@ export async function getProjectDistribution(): Promise<{
   const { data, error } = await supabase
     .from("projects")
     .select("blockchain, type")
-    .eq("approved", true);
+    .eq("status", "approved");
 
   if (error) {
     console.error("Error fetching project distribution:", error);
@@ -284,4 +368,25 @@ export async function getProjectDistribution(): Promise<{
   const byAssetType = Object.entries(assetTypeCounts).map(([name, value]) => ({ name, value }));
 
   return { byBlockchain, byAssetType };
+}
+
+export async function getProjectsByFilters(
+  assetType?: string,
+  blockchain?: string,
+  minRoi?: number,
+  maxRoi?: number,
+  page: number = 1,
+  limit: number = 10
+): Promise<{ projects: Project[], total: number }> {
+  const { data: projects, count: total } = await getProjects({
+    page,
+    limit,
+    assetType,
+    blockchain,
+    minRoi,
+    maxRoi,
+    status: 'approved', // Only get approved projects
+  });
+
+  return { projects, total };
 }
