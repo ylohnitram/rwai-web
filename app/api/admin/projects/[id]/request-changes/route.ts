@@ -19,7 +19,7 @@ export async function POST(
       .from('projects')
       .update({ 
         review_notes: requestNotes,
-        review_status: 'changes_requested' 
+        status: 'changes_requested' 
       })
       .eq('id', params.id)
       .select()

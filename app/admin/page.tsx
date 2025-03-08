@@ -33,22 +33,23 @@ export default function AdminPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [requestNotes, setRequestNotes] = useState("")
 
-  // Directly fetch pending projects from Supabase
+  // Correctly fetch pending projects from Supabase
   const fetchPendingProjects = async () => {
     try {
       const supabase = getSupabaseClient();
       
-      // Get pending projects directly from Supabase
+      // Get pending projects by status column instead of approved column
       const { data, error } = await supabase
         .from("projects")
         .select("*")
-        .eq("approved", false);
+        .eq("status", "pending");
         
       if (error) {
         console.error("Error fetching pending projects:", error);
         return [];
       }
       
+      console.log("Fetched pending projects:", data); // Debug log
       return data as Project[];
     } catch (error) {
       console.error("Error fetching pending projects:", error);
@@ -66,28 +67,30 @@ export default function AdminPage() {
         .from("projects")
         .select("*", { count: "exact", head: true });
 
-      // Get approved count
+      // Get approved count (using status column)
       const { count: approved } = await supabase
         .from("projects")
         .select("*", { count: "exact", head: true })
-        .eq("approved", true);
+        .eq("status", "approved");
 
-      // Get pending count
+      // Get pending count (using status column)
       const { count: pending } = await supabase
         .from("projects")
         .select("*", { count: "exact", head: true })
-        .eq("approved", false);
+        .eq("status", "pending");
 
-      // Get average ROI
+      // Get average ROI for approved projects
       const { data: roiData } = await supabase
         .from("projects")
         .select("roi")
-        .eq("approved", true);
+        .eq("status", "approved");
 
       const averageRoi = roiData && roiData.length > 0
         ? parseFloat((roiData.reduce((sum, project) => sum + (project.roi || 0), 0) / roiData.length).toFixed(1))
         : 0;
 
+      console.log("Stats:", { total, approved, pending, averageRoi }); // Debug log
+      
       return { 
         total: total || 0, 
         approved: approved || 0, 
@@ -109,7 +112,7 @@ export default function AdminPage() {
       const { data } = await supabase
         .from("projects")
         .select("blockchain, type")
-        .eq("approved", true);
+        .eq("status", "approved");
 
       if (!data) {
         return { byBlockchain: [], byAssetType: [] };

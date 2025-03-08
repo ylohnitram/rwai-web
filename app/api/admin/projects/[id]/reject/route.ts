@@ -12,10 +12,10 @@ export async function POST(
       process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
     
-    // Delete the project using the admin client
+    // Instead of deleting, update status to "rejected" 
     const { error } = await supabaseAdmin
       .from('projects')
-      .delete()
+      .update({ status: "rejected" })
       .eq('id', params.id);
       
     if (error) {

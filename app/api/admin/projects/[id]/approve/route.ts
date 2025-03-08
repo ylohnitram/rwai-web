@@ -13,9 +13,10 @@ export async function POST(
     );
     
     // Update the project using the admin client
+    // Use status="approved" instead of approved=true
     const { data, error } = await supabaseAdmin
       .from('projects')
-      .update({ approved: true })
+      .update({ status: "approved" })
       .eq('id', params.id)
       .select()
       .single();
