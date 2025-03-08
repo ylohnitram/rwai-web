@@ -87,6 +87,18 @@ export async function getProjectById(id: string): Promise<Project | null> {
   return data as Project;
 }
 
+// Funkce pro získání projektu podle slugu
+export async function getProjectBySlug(slug: string): Promise<Project | null> {
+  const { data: projects } = await getProjects({ limit: 100 });
+  
+  // Pomocná funkce pro generování slugu z názvu projektu
+  function generateSlug(name: string): string {
+    return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  }
+  
+  return projects.find(project => generateSlug(project.name) === slug) || null;
+}
+
 export async function getProjectsByIds(ids: string[]): Promise<Project[]> {
   if (!ids.length) return [];
   

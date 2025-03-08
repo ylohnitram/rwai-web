@@ -12,27 +12,32 @@ import DocumentWarning from "@/components/document-warning"
 import GeolocationWarning from "@/components/geolocation-warning"
 import LegalDisclaimer from "@/components/legal-disclaimer"
 import RiskSummary from "@/components/risk-summary"
-import { getProjectById, getProjects } from "@/lib/services/project-service"
+import { getProjectBySlug, getProjects } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
 import TokenCheckResult from "@/components/token-check-result";
 
 interface ProjectPageProps {
   params: {
-    id: string
+    slug: string
   }
 }
 
 export async function generateStaticParams() {
   // Fetch all approved projects for static generation
   const { data: projects } = await getProjects({ approved: true, limit: 100 })
-  
+
   return projects.map((project) => ({
-    id: project.id,
+    slug: generateSlug(project.name),
   }))
 }
 
+// Pomocná funkce pro generování slugu z názvu projektu
+function generateSlug(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
+
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
-  const project = await getProjectById(params.id)
+  const project = await getProjectBySlug(params.slug)
 
   if (!project) {
     return {
@@ -53,7 +58,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
-  const project = await getProjectById(params.id)
+  const project = await getProjectBySlug(params.slug)
 
   if (!project || !project.approved) {
     notFound()
@@ -87,14 +92,14 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       </div>
 
       {/* Risk Summary Component */}
-      <RiskSummary 
+      <RiskSummary
         projectId={project.id}
         riskLevel="low"
         scamReports={0}
         sanctionDetected={false}
         auditVerified={true}
       />
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <Card className="bg-gray-900 border-gray-800">
@@ -114,7 +119,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             <CardContent>
               {/* Document Warning Component */}
               <DocumentWarning />
-              
+
               <div className="p-6 border border-gray-800 rounded-md flex items-center justify-between">
                 <div className="flex items-center">
                   <FileText className="h-8 w-8 mr-3 text-blue-500" />
@@ -186,15 +191,16 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </Card>
         </div>
       </div>
-      
+
       {/* Add Token Warning and Geolocation Warning at the bottom */}
       <div className="mt-8">
-        <TokenCheckResult 
-          scamReports={0} 
-          sanctionDetected={false} 
-          auditVerified={true} 
+        <TokenCheckResult
+          scamReports={0}
+          sanctionDetected={false}
+          auditVerified={true}
         />
         <GeolocationWarning />
+        <LegalDisclaimer />
       </div>
     </div>
   )
