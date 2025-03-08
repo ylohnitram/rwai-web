@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { projects } from "@/data/projects"
 import Breadcrumbs from "@/components/breadcrumbs"
 import TokenWarning from "@/components/token-warning"
 import DocumentWarning from "@/components/document-warning"
 import GeolocationWarning from "@/components/geolocation-warning"
 import LegalDisclaimer from "@/components/legal-disclaimer"
 import RiskSummary from "@/components/risk-summary"
+import { getProjectById, getProjects } from "@/lib/services/project-service"
+import { notFound } from "next/navigation"
 
 interface ProjectPageProps {
   params: {
@@ -21,16 +22,16 @@ interface ProjectPageProps {
 }
 
 export async function generateStaticParams() {
-  // In a real app, this would fetch from a database
-  return projects
-    .filter((project) => project.approved)
-    .map((project) => ({
-      id: project.id,
-    }))
+  // Fetch all approved projects for static generation
+  const { data: projects } = await getProjects({ approved: true, limit: 100 })
+  
+  return projects.map((project) => ({
+    id: project.id,
+  }))
 }
 
-export function generateMetadata({ params }: ProjectPageProps): Metadata {
-  const project = projects.find((p) => p.id === params.id)
+export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
+  const project = await getProjectById(params.id)
 
   if (!project) {
     return {
@@ -50,22 +51,11 @@ export function generateMetadata({ params }: ProjectPageProps): Metadata {
   }
 }
 
-export default function ProjectPage({ params }: ProjectPageProps) {
-  const project = projects.find((p) => p.id === params.id)
+export default async function ProjectPage({ params }: ProjectPageProps) {
+  const project = await getProjectById(params.id)
 
-  if (!project) {
-    return (
-      <div className="container py-16 px-4 md:px-6 text-center">
-        <h1 className="text-3xl font-bold mb-4">Project Not Found</h1>
-        <p className="text-gray-400 mb-8">The project you are looking for does not exist or has been removed.</p>
-        <Button asChild>
-          <Link href="/directory">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Directory
-          </Link>
-        </Button>
-      </div>
-    )
+  if (!project || !project.approved) {
+    notFound()
   }
 
   return (
@@ -133,7 +123,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                   </div>
                 </div>
                 <Button asChild variant="outline">
-                  <a href={project.auditUrl} target="_blank" rel="noopener noreferrer">
+                  <a href={project.auditUrl || '#'} target="_blank" rel="noopener noreferrer">
                     View Report
                   </a>
                 </Button>

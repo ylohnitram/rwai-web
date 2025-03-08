@@ -1,36 +1,41 @@
 import { NextResponse } from "next/server"
-import { projects } from "@/data/projects"
+import { getProjects } from "@/lib/services/project-service"
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const page = Number.parseInt(searchParams.get("page") || "1")
-  const limit = Number.parseInt(searchParams.get("limit") || "10")
-  const assetType = searchParams.get("assetType")
-  const blockchain = searchParams.get("blockchain")
-  const minRoi = Number.parseFloat(searchParams.get("minRoi") || "0")
-  const maxRoi = Number.parseFloat(searchParams.get("maxRoi") || "100")
+  try {
+    const { searchParams } = new URL(req.url)
+    const page = Number.parseInt(searchParams.get("page") || "1")
+    const limit = Number.parseInt(searchParams.get("limit") || "10")
+    const assetType = searchParams.get("assetType") || undefined
+    const blockchain = searchParams.get("blockchain") || undefined
+    const minRoi = searchParams.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi") || "0") : undefined
+    const maxRoi = searchParams.get("maxRoi") ? Number.parseFloat(searchParams.get("maxRoi") || "100") : undefined
 
-  // Filter projects
-  const filteredProjects = projects.filter((project) => {
-    const matchesAssetType = !assetType || assetType === "all-types" || project.type === assetType
-    const matchesBlockchain = !blockchain || blockchain === "all-blockchains" || project.blockchain === blockchain
-    const matchesRoi = project.roi >= minRoi && project.roi <= maxRoi
-    return matchesAssetType && matchesBlockchain && matchesRoi && project.approved
-  })
-
-  // Paginate
-  const startIndex = (page - 1) * limit
-  const endIndex = startIndex + limit
-  const paginatedProjects = filteredProjects.slice(startIndex, endIndex)
-
-  return NextResponse.json({
-    data: paginatedProjects,
-    meta: {
-      total: filteredProjects.length,
+    // Fetch projects using the service
+    const { data: projects, count: total } = await getProjects({
       page,
       limit,
-      totalPages: Math.ceil(filteredProjects.length / limit),
-    },
-  })
-}
+      assetType,
+      blockchain,
+      minRoi,
+      maxRoi,
+      approved: true, // Only return approved projects in the API
+    })
 
+    return NextResponse.json({
+      data: projects,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    })
+  } catch (error) {
+    console.error("Error in projects API route:", error)
+    return NextResponse.json(
+      { error: "Failed to fetch projects" },
+      { status: 500 }
+    )
+  }
+}

@@ -3,8 +3,9 @@ import { ArrowLeft, Calendar, User } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { blogPosts } from "@/data/blog-posts"
+import { getBlogPostBySlug, getBlogPosts } from "@/lib/services/blog-service"
 import type { Metadata } from "next"
+import { notFound } from "next/navigation"
 
 interface BlogPostPageProps {
   params: {
@@ -12,8 +13,17 @@ interface BlogPostPageProps {
   }
 }
 
-export function generateMetadata({ params }: BlogPostPageProps): Metadata {
-  const post = blogPosts.find((post) => post.slug === params.slug)
+export async function generateStaticParams() {
+  // Fetch all blog posts for static generation
+  const blogPosts = await getBlogPosts({ limit: 100 });
+  
+  return blogPosts.map((post) => ({
+    slug: post.slug,
+  }));
+}
+
+export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+  const post = await getBlogPostBySlug(params.slug);
 
   if (!post) {
     return {
@@ -24,25 +34,21 @@ export function generateMetadata({ params }: BlogPostPageProps): Metadata {
   return {
     title: `${post.title} | TokenDirectory by RWA Investors`,
     description: post.excerpt,
+    openGraph: {
+      title: post.title,
+      description: post.excerpt,
+      type: 'article',
+      authors: [post.author],
+      publishedTime: new Date(post.date).toISOString(),
+    },
   }
 }
 
-export default function BlogPostPage({ params }: BlogPostPageProps) {
-  const post = blogPosts.find((post) => post.slug === params.slug)
+export default async function BlogPostPage({ params }: BlogPostPageProps) {
+  const post = await getBlogPostBySlug(params.slug);
 
   if (!post) {
-    return (
-      <div className="container py-16 px-4 md:px-6 text-center">
-        <h1 className="text-3xl font-bold mb-4">Blog Post Not Found</h1>
-        <p className="text-gray-400 mb-8">The article you are looking for does not exist or has been removed.</p>
-        <Button asChild>
-          <Link href="/blog">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Blog
-          </Link>
-        </Button>
-      </div>
-    )
+    notFound();
   }
 
   return (
@@ -60,9 +66,11 @@ export default function BlogPostPage({ params }: BlogPostPageProps) {
         <div className="mb-8">
           <div className="flex flex-wrap gap-2 mb-4">
             {post.tags.map((tag) => (
-              <Badge key={tag} variant="outline" className="bg-gray-800 hover:bg-gray-700">
-                {tag}
-              </Badge>
+              <Link key={tag} href={`/blog?tag=${encodeURIComponent(tag)}`}>
+                <Badge variant="outline" className="bg-gray-800 hover:bg-gray-700">
+                  {tag}
+                </Badge>
+              </Link>
             ))}
           </div>
           <h1 className="text-3xl md:text-4xl font-bold">{post.title}</h1>

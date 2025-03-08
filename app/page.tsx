@@ -6,8 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import ProjectCard from "@/components/project-card"
 import BlogCard from "@/components/blog-card"
 import LegalDisclaimer from "@/components/legal-disclaimer"
+import { getFeaturedProjects } from "@/lib/services/project-service"
+import { getBlogPosts } from "@/lib/services/blog-service"
 
-export default function Home() {
+export default async function Home() {
+  // Fetch featured projects from database
+  const featuredProjects = await getFeaturedProjects(3);
+  
+  // Fetch latest blog posts from database
+  const latestBlogPosts = await getBlogPosts({ limit: 3 });
+
   return (
     <div className="flex flex-col min-h-screen bg-[#0F172A] text-white">
       {/* Hero Section */}
@@ -117,27 +125,16 @@ export default function Home() {
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <ProjectCard
-              name="Manhattan Real Estate Fund"
-              type="Real Estate"
-              blockchain="Ethereum"
-              roi={8.2}
-              id="manhattan-fund"
-            />
-            <ProjectCard
-              name="Renaissance Art Collection"
-              type="Art"
-              blockchain="Polygon"
-              roi={9.5}
-              id="renaissance-art"
-            />
-            <ProjectCard
-              name="Global Commodity Index"
-              type="Commodities"
-              blockchain="Solana"
-              roi={7.8}
-              id="commodity-index"
-            />
+            {featuredProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                name={project.name}
+                type={project.type}
+                blockchain={project.blockchain}
+                roi={project.roi}
+                id={project.id}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -169,24 +166,15 @@ export default function Home() {
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <BlogCard
-              title="The Evolution of Real World Assets on Blockchain"
-              excerpt="How tokenization is transforming traditional investment markets and creating new opportunities for investors globally."
-              slug="rwa-evolution"
-              date="2023-05-15"
-            />
-            <BlogCard
-              title="Regulatory Landscape for Tokenized Securities"
-              excerpt="A comprehensive overview of the current regulatory frameworks governing tokenized securities across major jurisdictions."
-              slug="regulatory-landscape"
-              date="2023-06-02"
-            />
-            <BlogCard
-              title="Institutional Adoption of RWAs in 2023"
-              excerpt="Analysis of how major financial institutions are increasingly investing in tokenized real-world assets."
-              slug="institutional-adoption"
-              date="2023-07-10"
-            />
+            {latestBlogPosts.map((post) => (
+              <BlogCard
+                key={post.slug}
+                title={post.title}
+                excerpt={post.excerpt}
+                slug={post.slug}
+                date={post.date}
+              />
+            ))}
           </div>
         </div>
       </section>

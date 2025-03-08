@@ -4,7 +4,8 @@ import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Check, Info, Loader2 } from "lucide-react"
+import { Info, Loader2, CheckCircle } from "lucide-react"
+import Breadcrumbs from "@/components/breadcrumbs"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -14,12 +15,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { createProject } from "@/lib/services/project-service"
 
 const formSchema = z.object({
-  projectName: z.string().min(2, {
+  name: z.string().min(2, {
     message: "Project name must be at least 2 characters.",
   }),
-  assetType: z.string({
+  type: z.string({
     required_error: "Please select an asset type.",
   }),
   blockchain: z.string({
@@ -33,7 +35,7 @@ const formSchema = z.object({
     .max(100, {
       message: "ROI cannot exceed 100%.",
     }),
-  url: z.string().url({
+  website: z.string().url({
     message: "Please enter a valid URL.",
   }),
   description: z
@@ -47,32 +49,64 @@ const formSchema = z.object({
   contactEmail: z.string().email({
     message: "Please enter a valid email address.",
   }),
+  tvl: z.string().min(1, {
+    message: "TVL is required.",
+  }),
 })
+
+type FormValues = z.infer<typeof formSchema>
 
 export default function SubmitPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      projectName: "",
+      name: "",
       description: "",
       roi: 0,
-      url: "",
+      website: "",
       contactEmail: "",
+      tvl: "$0M",
     },
   })
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
     setIsSubmitting(true)
+    setError(null)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Prepare project data
+      const projectData = {
+        name: values.name,
+        type: values.type,
+        blockchain: values.blockchain,
+        roi: values.roi,
+        description: values.description,
+        website: values.website,
+        tvl: values.tvl,
+        // Set default values for database
+        approved: false,
+        featured: false,
+        // We can store contact email in a separate field or meta field if needed
+        // For now we'll just log it
+        auditUrl: `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
+      }
 
-    console.log(values)
-    setIsSubmitting(false)
-    setIsSubmitted(true)
+      console.log("Contact email for project:", values.contactEmail)
+      
+      // Submit to database
+      await createProject(projectData)
+      
+      setIsSubmitted(true)
+    } catch (err) {
+      console.error("Error submitting project:", err)
+      setError(err instanceof Error ? err.message : "An unexpected error occurred")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (isSubmitted) {
@@ -82,7 +116,7 @@ export default function SubmitPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500">
-                <Check className="h-5 w-5 text-white" />
+                <CheckCircle className="h-5 w-5 text-white" />
               </div>
               <CardTitle className="text-2xl">Project Submitted Successfully</CardTitle>
             </div>
@@ -97,7 +131,10 @@ export default function SubmitPage() {
               If additional information is needed, we will reach out to you using the contact email you provided.
             </p>
             <div className="flex justify-center mt-4">
-              <Button onClick={() => setIsSubmitted(false)}>Submit Another Project</Button>
+              <Button onClick={() => {
+                setIsSubmitted(false)
+                form.reset()
+              }}>Submit Another Project</Button>
             </div>
           </CardContent>
         </Card>
@@ -107,6 +144,7 @@ export default function SubmitPage() {
 
   return (
     <div className="container py-8 px-4 md:px-6">
+      <Breadcrumbs />
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tighter mb-2">Submit Your Project</h1>
@@ -122,6 +160,15 @@ export default function SubmitPage() {
           </AlertDescription>
         </Alert>
 
+        {error && (
+          <Alert className="mb-8 bg-red-900/30 border-red-800">
+            <AlertTitle className="text-red-300">Error</AlertTitle>
+            <AlertDescription className="text-red-300">
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader>
             <CardTitle>Project Information</CardTitle>
@@ -132,7 +179,7 @@ export default function SubmitPage() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
-                  name="projectName"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Project Name *</FormLabel>
@@ -151,7 +198,7 @@ export default function SubmitPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
-                    name="assetType"
+                    name="type"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Asset Type *</FormLabel>
@@ -214,18 +261,37 @@ export default function SubmitPage() {
 
                   <FormField
                     control={form.control}
-                    name="url"
+                    name="tvl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Project URL *</FormLabel>
+                        <FormLabel>Total Value Locked (TVL) *</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://..." {...field} className="bg-gray-800 border-gray-700" />
+                          <Input 
+                            placeholder="$10M" 
+                            {...field} 
+                            className="bg-gray-800 border-gray-700" 
+                          />
                         </FormControl>
+                        <FormDescription>Current total value of assets</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="website"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project Website *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." {...field} className="bg-gray-800 border-gray-700" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
@@ -290,4 +356,3 @@ export default function SubmitPage() {
     </div>
   )
 }
-

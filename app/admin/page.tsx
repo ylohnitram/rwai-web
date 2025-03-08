@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Check, X, LogOut } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
@@ -8,19 +8,88 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { projects } from "@/data/projects"
 import { getSupabaseClient } from "@/lib/supabase"
+import { Project } from "@/types/project"
+import { 
+  getProjects, 
+  getProjectStats, 
+  getProjectDistribution,
+  approveProject, 
+  rejectProject 
+} from "@/lib/services/project-service"
 
 export default function AdminPage() {
-  const [pendingProjects, setPendingProjects] = useState(projects.filter((project) => !project.approved))
+  const [pendingProjects, setPendingProjects] = useState<Project[]>([])
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [stats, setStats] = useState({
+    total: 0,
+    approved: 0,
+    pending: 0,
+    averageRoi: 0
+  })
+  const [distribution, setDistribution] = useState({
+    byBlockchain: [] as { name: string; value: number }[],
+    byAssetType: [] as { name: string; value: number }[]
+  })
+  const [isLoading, setIsLoading] = useState(true)
 
-  const approveProject = (id: string) => {
-    setPendingProjects((prev) => prev.filter((project) => project.id !== id))
+  // Load data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+      try {
+        // Load pending projects
+        const { data: pendingData } = await getProjects({ approved: false })
+        setPendingProjects(pendingData)
+
+        // Load stats
+        const statsData = await getProjectStats()
+        setStats(statsData)
+
+        // Load distribution data
+        const distributionData = await getProjectDistribution()
+        setDistribution(distributionData)
+      } catch (error) {
+        console.error("Error loading admin data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
+  const handleApproveProject = async (id: string) => {
+    try {
+      await approveProject(id)
+      setPendingProjects((prev) => prev.filter((project) => project.id !== id))
+      
+      // Update stats
+      setStats(prevStats => ({
+        ...prevStats,
+        total: prevStats.total,  // Total remains the same
+        approved: prevStats.approved + 1,
+        pending: prevStats.pending - 1
+      }))
+    } catch (error) {
+      console.error("Error approving project:", error)
+    }
   }
 
-  const rejectProject = (id: string) => {
-    setPendingProjects((prev) => prev.filter((project) => project.id !== id))
+  const handleRejectProject = async (id: string) => {
+    try {
+      await rejectProject(id)
+      setPendingProjects((prev) => prev.filter((project) => project.id !== id))
+      
+      // Update stats
+      setStats(prevStats => ({
+        ...prevStats,
+        total: prevStats.total - 1,
+        pending: prevStats.pending - 1
+      }))
+    } catch (error) {
+      console.error("Error rejecting project:", error)
+    }
   }
 
   // Handle sign out with thorough session cleanup
@@ -54,48 +123,13 @@ export default function AdminPage() {
     }
   }
 
-  // Calculate statistics
-  const totalProjects = projects.length
-  const approvedProjects = projects.filter((project) => project.approved).length
-  const pendingCount = pendingProjects.length
-
-  // Calculate average ROI with proper formatting (4 decimal places)
-  const averageRoi = (
-    projects.filter((p) => p.approved).reduce((acc, project) => acc + project.roi, 0) / 
-    (approvedProjects || 1)
-  ).toFixed(4)
-
-  // Count projects by blockchain
-  const blockchainCounts = projects.reduce(
-    (acc, project) => {
-      if (project.approved) {
-        acc[project.blockchain] = (acc[project.blockchain] || 0) + 1
-      }
-      return acc
-    },
-    {} as Record<string, number>,
-  )
-
-  const blockchainData = Object.entries(blockchainCounts).map(([name, value]) => ({
-    name,
-    value,
-  }))
-
-  // Count projects by asset type
-  const assetTypeCounts = projects.reduce(
-    (acc, project) => {
-      if (project.approved) {
-        acc[project.type] = (acc[project.type] || 0) + 1
-      }
-      return acc
-    },
-    {} as Record<string, number>,
-  )
-
-  const assetTypeData = Object.entries(assetTypeCounts).map(([name, value]) => ({
-    name,
-    value,
-  }))
+  if (isLoading) {
+    return (
+      <div className="container py-8 px-4 md:px-6 text-center">
+        <p>Loading admin dashboard...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -122,7 +156,7 @@ export default function AdminPage() {
             <CardTitle className="text-xl">Total Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{totalProjects}</div>
+            <div className="text-4xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
         <Card className="bg-gray-900 border-gray-800">
@@ -130,7 +164,7 @@ export default function AdminPage() {
             <CardTitle className="text-xl">Approved Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-green-500">{approvedProjects}</div>
+            <div className="text-4xl font-bold text-green-500">{stats.approved}</div>
           </CardContent>
         </Card>
         <Card className="bg-gray-900 border-gray-800">
@@ -138,7 +172,7 @@ export default function AdminPage() {
             <CardTitle className="text-xl">Pending Review</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-yellow-500">{pendingCount}</div>
+            <div className="text-4xl font-bold text-yellow-500">{stats.pending}</div>
           </CardContent>
         </Card>
         <Card className="bg-gray-900 border-gray-800">
@@ -147,7 +181,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold text-blue-500">
-              {averageRoi}%
+              {stats.averageRoi}%
             </div>
           </CardContent>
         </Card>
@@ -163,7 +197,7 @@ export default function AdminPage() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={blockchainData}>
+                <BarChart data={distribution.byBlockchain}>
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip contentStyle={{ backgroundColor: "#1f2937", borderColor: "#374151", color: "white" }} />
@@ -181,7 +215,7 @@ export default function AdminPage() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={assetTypeData}>
+                <BarChart data={distribution.byAssetType}>
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip contentStyle={{ backgroundColor: "#1f2937", borderColor: "#374151", color: "white" }} />
@@ -226,11 +260,15 @@ export default function AdminPage() {
                           <Button
                             size="sm"
                             className="bg-green-600 hover:bg-green-700"
-                            onClick={() => approveProject(project.id)}
+                            onClick={() => handleApproveProject(project.id)}
                           >
                             <Check className="h-4 w-4 mr-1" /> Approve
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => rejectProject(project.id)}>
+                          <Button 
+                            size="sm" 
+                            variant="destructive" 
+                            onClick={() => handleRejectProject(project.id)}
+                          >
                             <X className="h-4 w-4 mr-1" /> Reject
                           </Button>
                         </div>
