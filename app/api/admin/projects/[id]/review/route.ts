@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { reviewProject } from "@/lib/services/project-service";
-import { getProjectById } from "@/lib/services/project-service";
-import { sendEmailNotification } from "@/lib/services/notification-service";
 import { ProjectStatus } from "@/types/project";
+import { sendEmailNotification } from "@/lib/services/notification-service";
 
 export async function POST(
   request: Request,
@@ -57,9 +55,13 @@ export async function POST(
     }
     
     // Get the project first to check if it exists and get contact email
-    const project = await getProjectById(projectId);
+    const { data: project, error: projectFetchError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
     
-    if (!project) {
+    if (projectFetchError || !project) {
       return NextResponse.json(
         { error: "Project not found" },
         { status: 404 }
@@ -67,12 +69,24 @@ export async function POST(
     }
     
     // Update the project with the review
-    const updatedProject = await reviewProject(projectId, {
-      id: projectId,
-      status: status as ProjectStatus,
-      review_notes,
-      // The reviewer_id and reviewed_at will be set by the service
-    });
+    const { data: updatedProject, error: updateError } = await supabase
+      .from('projects')
+      .update({
+        status,
+        review_notes,
+        reviewer_id: session.user.id,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', projectId)
+      .select()
+      .single();
+    
+    if (updateError) {
+      return NextResponse.json(
+        { error: `Failed to update project: ${updateError.message}` },
+        { status: 500 }
+      );
+    }
     
     // Send email notification if we have a contact email
     if (project.contact_email) {
@@ -87,7 +101,7 @@ export async function POST(
 
 ${review_notes ? `Review notes: ${review_notes}` : ''}
 
-You can view your project at: https://tokendirectory.example.com/projects/${project.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
+You can view your project at: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://tokendirectory.example.com'}/projects/${project.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
             break;
             
           case 'rejected':
@@ -121,11 +135,11 @@ Please update your submission with these changes. You can do so by submitting a 
       project: updatedProject
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error processing project review:', error);
     
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', message: error.message },
       { status: 500 }
     );
   }

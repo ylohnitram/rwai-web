@@ -15,8 +15,11 @@ export async function POST(request: Request) {
       );
     }
 
+    // Create a new cookie store for this request
+    const cookieStore = cookies();
+    
     // Use the route handler client which is optimized for API routes
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // Attempt to sign in
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -32,9 +35,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!data.user) {
+    if (!data.user || !data.session) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'User not found or session not created' },
         { status: 404 }
       );
     }
@@ -64,18 +67,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Successfully authenticated as admin
-    return NextResponse.json(
-      { 
-        message: 'Authentication successful',
-        user: {
-          id: data.user.id,
-          email: data.user.email,
-          role: profileData.role
-        }
+    // Return success response with session information
+    return NextResponse.json({
+      success: true,
+      message: 'Authentication successful',
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        role: profileData.role
       },
-      { status: 200 }
-    );
+      // Include session expiry information for client-side handling
+      session: {
+        expires_at: data.session.expires_at
+      }
+    });
   } catch (err: any) {
     console.error('Unexpected error in login route:', err);
     return NextResponse.json(

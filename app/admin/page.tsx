@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { getSupabaseClient } from "@/lib/supabase"
 import { Project, ProjectStatus } from "@/types/project"
 import { 
@@ -52,6 +53,7 @@ export default function AdminPage() {
   })
   
   const [isLoading, setIsLoading] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
   
   // Dialog state for project actions
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -59,11 +61,55 @@ export default function AdminPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [reviewNotes, setReviewNotes] = useState("")
 
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/admin/auth/check');
+        
+        if (!response.ok) {
+          const data = await response.json();
+          setAuthError(data.message || 'Authentication failed');
+          
+          // Redirect to login after a delay
+          setTimeout(() => {
+            router.push('/login');
+          }, 3000);
+          
+          return false;
+        }
+        
+        return true;
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setAuthError('Failed to verify authentication status');
+        
+        // Redirect to login after a delay
+        setTimeout(() => {
+          router.push('/login');
+        }, 3000);
+        
+        return false;
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
+
   // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
       try {
+        // First check authentication
+        const response = await fetch('/api/admin/auth/check');
+        if (!response.ok) {
+          const data = await response.json();
+          setAuthError(data.message || 'Authentication failed');
+          setIsLoading(false);
+          return;
+        }
+        
         // Load projects by status
         const { data: pendingData } = await getProjects({ status: 'pending' })
         const { data: changesRequestedData } = await getProjects({ status: 'changes_requested' })
@@ -105,9 +151,41 @@ export default function AdminPage() {
     if (!selectedProject) return
     
     try {
+      // First check authentication
+      const authResponse = await fetch('/api/admin/auth/check');
+      if (!authResponse.ok) {
+        const authData = await authResponse.json();
+        setAuthError(authData.message || 'Session expired. Please log in again.');
+        setIsDialogOpen(false);
+        
+        // Redirect to login after a delay
+        setTimeout(() => {
+          router.push('/login');
+        }, 3000);
+        return;
+      }
+      
+      // Use the API endpoint for project reviews instead of direct service calls
+      const response = await fetch(`/api/admin/projects/${selectedProject.id}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: dialogAction === "approve" ? "approved" : 
+                 dialogAction === "reject" ? "rejected" : "changes_requested",
+          review_notes: reviewNotes
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update project');
+      }
+      
+      // Update UI based on action
       switch (dialogAction) {
         case "approve":
-          await approveProject(selectedProject.id, reviewNotes)
           // Remove from pending list
           setProjects(prev => ({
             ...prev,
@@ -115,7 +193,6 @@ export default function AdminPage() {
           }))
           break
         case "reject":
-          await rejectProject(selectedProject.id, reviewNotes)
           // Remove from all lists
           setProjects(prev => ({
             ...prev,
@@ -128,7 +205,6 @@ export default function AdminPage() {
             alert("Please provide notes when requesting changes")
             return
           }
-          await requestChanges(selectedProject.id, reviewNotes)
           // Move from pending to changes requested
           setProjects(prev => ({
             ...prev,
@@ -170,16 +246,25 @@ export default function AdminPage() {
     }
   }
 
-  // Handle sign out with thorough session cleanup
+  // Handle sign out with thorough session cleanup using the API
   const handleSignOut = async () => {
     setIsSigningOut(true)
     try {
+      // Create a Supabase client
       const supabase = getSupabaseClient()
       
-      // Complete server-side sign out
-      await supabase.auth.signOut({ scope: 'global' })
+      // Use our server-side route to sign out
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
       
-      // Clear any cookies or local storage
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+      
+      // Additional client-side cleanup
+      
+      // Clear any cookies
       document.cookie.split(";").forEach((cookie) => {
         const [name] = cookie.trim().split("=")
         document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
@@ -190,7 +275,7 @@ export default function AdminPage() {
       localStorage.removeItem('supabase.auth.expires_at')
       localStorage.removeItem('supabase.auth.refresh_token')
       
-      // Clear session storage as well
+      // Clear session storage
       sessionStorage.clear()
       
       // Force a full page reload to ensure all state is cleared
@@ -198,6 +283,15 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Error signing out:", error)
       setIsSigningOut(false)
+      
+      // Try direct client-side signout as a fallback
+      try {
+        const supabase = getSupabaseClient()
+        await supabase.auth.signOut({ scope: 'global' })
+        window.location.href = '/login?signedout=true'
+      } catch (fallbackError) {
+        console.error("Fallback signout failed:", fallbackError)
+      }
     }
   }
 
@@ -217,6 +311,20 @@ export default function AdminPage() {
     }
   }
 
+  if (authError) {
+    return (
+      <div className="container py-8 px-4 md:px-6">
+        <Alert className="mb-8 bg-red-900/30 border-red-800">
+          <AlertCircle className="h-4 w-4 text-red-500" />
+          <AlertTitle className="text-red-300">Authentication Error</AlertTitle>
+          <AlertDescription className="text-red-300">
+            {authError}. Redirecting to login page...
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+  
   if (isLoading) {
     return (
       <div className="container py-8 px-4 md:px-6 text-center">

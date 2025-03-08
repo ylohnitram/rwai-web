@@ -48,9 +48,22 @@ function LoginForm() {
     setSuccess(null)
 
     try {
+      // First clear any existing session to avoid conflicts
       const supabase = getSupabaseClient()
+      await supabase.auth.signOut({ scope: 'global' })
+      
+      // Clear cookies and local storage to ensure a fresh login
+      document.cookie.split(";").forEach((cookie) => {
+        const [name] = cookie.trim().split("=")
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+      });
+      
+      localStorage.removeItem('supabase.auth.token')
+      localStorage.removeItem('supabase.auth.expires_at')
+      localStorage.removeItem('supabase.auth.refresh_token')
+      sessionStorage.clear()
 
-      // Create a fetch request to a server endpoint instead of using client-side auth
+      // Create a fetch request to a server endpoint for login
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -67,8 +80,13 @@ function LoginForm() {
         return;
       }
 
-      // On success, force a full page reload to admin
-      window.location.href = '/admin';
+      // Set success state
+      setSuccess('Login successful! Redirecting to admin dashboard...');
+      
+      // On success, force a full page reload to admin after a short delay
+      setTimeout(() => {
+        window.location.href = '/admin';
+      }, 1000);
       
     } catch (err: any) {
       console.error("Login error:", err)
