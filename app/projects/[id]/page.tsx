@@ -14,6 +14,7 @@ import LegalDisclaimer from "@/components/legal-disclaimer"
 import RiskSummary from "@/components/risk-summary"
 import { getProjectById, getProjects } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
+import TokenCheckResult from "@/components/token-check-result";
 
 interface ProjectPageProps {
   params: {
@@ -188,7 +189,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       
       {/* Add Token Warning and Geolocation Warning at the bottom */}
       <div className="mt-8">
-        <TokenWarning 
+        <TokenCheckResult 
           scamReports={0} 
           sanctionDetected={false} 
           auditVerified={true} 
