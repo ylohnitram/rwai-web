@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { getSupabaseClient } from "@/lib/supabase"
 import { Project } from "@/types/project"
 import { approveProject, rejectProject, requestChanges } from "../actions"
+import { Toaster } from "@/components/ui/toaster"
 
 export default function AdminPage() {
   const { toast } = useToast()
@@ -149,6 +150,23 @@ export default function AdminPage() {
     }
   };
 
+  // Add this function to refresh stats after any action
+  const refreshStats = async () => {
+    try {
+      // Refresh stats
+      const statsData = await fetchProjectStats();
+      setStats(statsData);
+
+      // Refresh distribution data
+      const distributionData = await fetchProjectDistribution();
+      setDistribution(distributionData);
+      
+      console.log("Stats refreshed");
+    } catch (error) {
+      console.error("Error refreshing stats:", error);
+    }
+  };
+
   // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
@@ -189,21 +207,15 @@ export default function AdminPage() {
         throw new Error(result.error || 'Failed to approve project');
       }
       
-      // Update the UI
+      // Update the UI immediately
       setPendingProjects((prev) => prev.filter((project) => project.id !== id));
       
-      // Update stats
-      setStats(prevStats => ({
-        ...prevStats,
-        total: prevStats.total,
-        approved: prevStats.approved + 1,
-        pending: prevStats.pending - 1
-      }));
+      // Refresh stats from the server
+      await refreshStats();
       
       toast({
         title: "Project approved",
         description: "The project has been successfully approved and is now listed in the directory.",
-        variant: "default",
       });
     } catch (error) {
       console.error("Error approving project:", error);
@@ -226,22 +238,15 @@ export default function AdminPage() {
         throw new Error(result.error || 'Failed to reject project');
       }
       
-      // Update the UI
+      // Update the UI immediately
       setPendingProjects((prev) => prev.filter((project) => project.id !== id));
       
-      // Update stats
-      setStats(prevStats => ({
-        ...prevStats,
-        total: prevStats.total,
-        approved: prevStats.approved,
-        pending: prevStats.pending - 1,
-        rejected: (prevStats.rejected || 0) + 1
-      }));
+      // Refresh stats from the server
+      await refreshStats();
       
       toast({
         title: "Project rejected",
         description: "The project has been rejected and will not be listed in the directory.",
-        variant: "default",
       });
     } catch (error) {
       console.error("Error rejecting project:", error);
@@ -284,19 +289,15 @@ export default function AdminPage() {
       setSelectedProjectId(null);
       setRequestNotes("");
       
-      // Update the UI
+      // Update the UI immediately
       setPendingProjects((prev) => prev.filter((project) => project.id !== selectedProjectId));
       
-      // Update stats
-      setStats(prevStats => ({
-        ...prevStats,
-        pending: prevStats.pending - 1
-      }));
+      // Refresh stats from the server
+      await refreshStats();
       
       toast({
         title: "Changes requested",
         description: "Feedback has been sent to the project owner.",
-        variant: "default",
       });
     } catch (error) {
       console.error("Error requesting changes:", error);
@@ -336,7 +337,6 @@ export default function AdminPage() {
       toast({
         title: "Signed out",
         description: "You have been successfully signed out.",
-        variant: "default",
       });
       
       // Force a full page reload to ensure all state is cleared
@@ -364,6 +364,7 @@ export default function AdminPage() {
 
   return (
     <div className="container py-8 px-4 md:px-6">
+      <Toaster />
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tighter mb-2">Admin Dashboard</h1>
