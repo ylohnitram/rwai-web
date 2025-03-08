@@ -165,8 +165,8 @@ export default function AdminPage() {
         return;
       }
       
-      // Use the service role API endpoint to bypass RLS
-      const response = await fetch(`/api/admin/projects/${selectedProject.id}/service-update`, {
+      // Use the direct DB endpoint to bypass RLS completely
+      const response = await fetch(`/api/admin/projects/${selectedProject.id}/direct-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,8 +176,8 @@ export default function AdminPage() {
                  dialogAction === "reject" ? "rejected" : "changes_requested",
           review_notes: reviewNotes
         }),
-      });
-      
+      });     
+ 
       if (!response.ok) {
         const errorData = await response.json();
         console.error("API error details:", errorData);
