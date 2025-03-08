@@ -1,7 +1,8 @@
+// app/admin/page.tsx
 'use client'
 
 import { useState, useEffect } from "react"
-import { Check, X, LogOut, FileEdit } from "lucide-react"
+import { Check, X, LogOut, FileEdit, Clock } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { useToast } from "@/hooks/use-toast" 
 
@@ -15,6 +16,8 @@ import { getSupabaseClient } from "@/lib/supabase"
 import { Project } from "@/types/project"
 import { approveProject, rejectProject, requestChanges } from "../actions"
 import { Toaster } from "@/components/ui/toaster"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function AdminPage() {
   const { toast } = useToast()
@@ -37,6 +40,16 @@ export default function AdminPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [requestNotes, setRequestNotes] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // For audit log
+  const [auditLog, setAuditLog] = useState<Array<{
+    id: string;
+    timestamp: string;
+    projectId: string;
+    projectName: string;
+    action: string;
+    notes?: string;
+  }>>([])
 
   // Correctly fetch pending projects from Supabase
   const fetchPendingProjects = async () => {
@@ -150,6 +163,28 @@ export default function AdminPage() {
     }
   };
 
+  // Function to log actions to the audit log
+  const logAction = (projectId: string, projectName: string, action: string, notes?: string) => {
+    const logEntry = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      projectId,
+      projectName,
+      action,
+      notes
+    };
+    
+    setAuditLog(prev => [logEntry, ...prev]);
+    
+    // Optionally, you could also save this to localStorage for persistence
+    try {
+      const existingLog = JSON.parse(localStorage.getItem('adminAuditLog') || '[]');
+      localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
+    } catch (error) {
+      console.error("Error saving to localStorage:", error);
+    }
+  };
+
   // Add this function to refresh stats after any action
   const refreshStats = async () => {
     try {
@@ -170,7 +205,7 @@ export default function AdminPage() {
   // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
         // Load pending projects
         const pendingData = await fetchPendingProjects();
@@ -183,6 +218,16 @@ export default function AdminPage() {
         // Load distribution data
         const distributionData = await fetchProjectDistribution();
         setDistribution(distributionData);
+        
+        // Load audit log from localStorage if available
+        try {
+          const savedLog = localStorage.getItem('adminAuditLog');
+          if (savedLog) {
+            setAuditLog(JSON.parse(savedLog));
+          }
+        } catch (error) {
+          console.error("Error loading audit log:", error);
+        }
       } catch (error) {
         console.error("Error loading admin data:", error);
         toast({
@@ -193,7 +238,7 @@ export default function AdminPage() {
       } finally {
         setIsLoading(false);
       }
-    }
+    };
 
     loadData();
   }, []);
@@ -201,6 +246,10 @@ export default function AdminPage() {
   const handleApproveProject = async (id: string) => {
     setIsProcessing(true);
     try {
+      // Find the project name before we filter it out
+      const project = pendingProjects.find(p => p.id === id);
+      const projectName = project?.name || "Unknown project";
+      
       const result = await approveProject(id);
       
       if (!result.success) {
@@ -213,9 +262,13 @@ export default function AdminPage() {
       // Refresh stats from the server
       await refreshStats();
       
+      // Log the action to audit log
+      logAction(id, projectName, "approved");
+      
       toast({
-        title: "Project approved",
+        title: `Project approved: ${projectName}`,
         description: "The project has been successfully approved and is now listed in the directory.",
+        className: "bg-green-800 border-green-700 text-white",
       });
     } catch (error) {
       console.error("Error approving project:", error);
@@ -232,6 +285,10 @@ export default function AdminPage() {
   const handleRejectProject = async (id: string) => {
     setIsProcessing(true);
     try {
+      // Find the project name before we filter it out
+      const project = pendingProjects.find(p => p.id === id);
+      const projectName = project?.name || "Unknown project";
+      
       const result = await rejectProject(id);
       
       if (!result.success) {
@@ -244,9 +301,13 @@ export default function AdminPage() {
       // Refresh stats from the server
       await refreshStats();
       
+      // Log the action to audit log
+      logAction(id, projectName, "rejected");
+      
       toast({
-        title: "Project rejected",
+        title: `Project rejected: ${projectName}`,
         description: "The project has been rejected and will not be listed in the directory.",
+        className: "bg-red-800 border-red-700 text-white",
       });
     } catch (error) {
       console.error("Error rejecting project:", error);
@@ -278,6 +339,10 @@ export default function AdminPage() {
 
     setIsProcessing(true);
     try {
+      // Find the project name before we filter it out
+      const project = pendingProjects.find(p => p.id === selectedProjectId);
+      const projectName = project?.name || "Unknown project";
+      
       const result = await requestChanges(selectedProjectId, requestNotes);
       
       if (!result.success) {
@@ -295,9 +360,13 @@ export default function AdminPage() {
       // Refresh stats from the server
       await refreshStats();
       
+      // Log the action to audit log
+      logAction(selectedProjectId, projectName, "requested changes", requestNotes);
+      
       toast({
-        title: "Changes requested",
+        title: `Changes requested: ${projectName}`,
         description: "Feedback has been sent to the project owner.",
+        className: "bg-amber-800 border-amber-700 text-white",
       });
     } catch (error) {
       console.error("Error requesting changes:", error);
@@ -353,6 +422,11 @@ export default function AdminPage() {
       setIsSigningOut(false)
     }
   }
+
+  // Format date for display
+  const formatDate = (isoDate: string) => {
+    return new Date(isoDate).toLocaleString();
+  };
 
   if (isLoading) {
     return (
@@ -419,113 +493,182 @@ export default function AdminPage() {
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle>Projects by Blockchain</CardTitle>
-            <CardDescription>Distribution of approved projects</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={distribution.byBlockchain}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ backgroundColor: "#1f2937", borderColor: "#374151", color: "white" }} />
-                  <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle>Projects by Asset Type</CardTitle>
-            <CardDescription>Distribution of approved projects</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={distribution.byAssetType}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ backgroundColor: "#1f2937", borderColor: "#374151", color: "white" }} />
-                  <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Tabs for Projects and Audit Log */}
+      <Tabs defaultValue="projects" className="mb-8">
+        <TabsList className="bg-gray-900 border border-gray-800">
+          <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="audit">Audit Log</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="projects">
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <Card className="bg-gray-900 border-gray-800">
+              <CardHeader>
+                <CardTitle>Projects by Blockchain</CardTitle>
+                <CardDescription>Distribution of approved projects</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={distribution.byBlockchain}>
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip contentStyle={{ backgroundColor: "#1f2937", borderColor: "#374151", color: "white" }} />
+                      <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gray-900 border-gray-800">
+              <CardHeader>
+                <CardTitle>Projects by Asset Type</CardTitle>
+                <CardDescription>Distribution of approved projects</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={distribution.byAssetType}>
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip contentStyle={{ backgroundColor: "#1f2937", borderColor: "#374151", color: "white" }} />
+                      <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Pending Projects Table */}
-      <Card className="bg-gray-900 border-gray-800">
-        <CardHeader>
-          <CardTitle>Pending Projects</CardTitle>
-          <CardDescription>Review and approve new project submissions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {pendingProjects.length > 0 ? (
-            <div className="rounded-md border border-gray-800 overflow-hidden">
-              <Table>
-                <TableHeader className="bg-gray-900">
-                  <TableRow className="hover:bg-gray-800 border-gray-800">
-                    <TableHead className="font-medium">Project Name</TableHead>
-                    <TableHead className="font-medium">Asset Type</TableHead>
-                    <TableHead className="font-medium">Blockchain</TableHead>
-                    <TableHead className="font-medium">ROI</TableHead>
-                    <TableHead className="font-medium">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingProjects.map((project) => (
-                    <TableRow key={project.id} className="hover:bg-gray-800 border-gray-800">
-                      <TableCell className="font-medium">{project.name}</TableCell>
-                      <TableCell>{project.type}</TableCell>
-                      <TableCell>{project.blockchain}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-blue-600 hover:bg-blue-700">{project.roi.toFixed(2)}%</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleApproveProject(project.id)}
-                            disabled={isProcessing}
+          {/* Pending Projects Table */}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle>Pending Projects</CardTitle>
+              <CardDescription>Review and approve new project submissions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {pendingProjects.length > 0 ? (
+                <div className="rounded-md border border-gray-800 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-900">
+                      <TableRow className="hover:bg-gray-800 border-gray-800">
+                        <TableHead className="font-medium">Project Name</TableHead>
+                        <TableHead className="font-medium">Asset Type</TableHead>
+                        <TableHead className="font-medium">Blockchain</TableHead>
+                        <TableHead className="font-medium">ROI</TableHead>
+                        <TableHead className="font-medium">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingProjects.map((project) => (
+                        <TableRow key={project.id} className="hover:bg-gray-800 border-gray-800">
+                          <TableCell className="font-medium">{project.name}</TableCell>
+                          <TableCell>{project.type}</TableCell>
+                          <TableCell>{project.blockchain}</TableCell>
+                          <TableCell>
+                            <Badge className="bg-blue-600 hover:bg-blue-700">{project.roi.toFixed(2)}%</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleApproveProject(project.id)}
+                                disabled={isProcessing}
+                              >
+                                <Check className="h-4 w-4 mr-1" /> Approve
+                              </Button>
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
+                                onClick={() => openRequestChangesDialog(project.id)}
+                                disabled={isProcessing}
+                              >
+                                <FileEdit className="h-4 w-4 mr-1" /> Request Changes
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                onClick={() => handleRejectProject(project.id)}
+                                disabled={isProcessing}
+                              >
+                                <X className="h-4 w-4 mr-1" /> Reject
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">No pending projects to review</div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="audit">
+          {/* Audit Log */}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardHeader>
+              <CardTitle>Audit Log</CardTitle>
+              <CardDescription>History of admin actions on projects</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {auditLog.length > 0 ? (
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-4">
+                    {auditLog.map((entry) => (
+                      <div 
+                        key={entry.id} 
+                        className={`p-4 rounded-md border ${
+                          entry.action === "approved" 
+                            ? "bg-green-900/20 border-green-700" 
+                            : entry.action === "rejected"
+                            ? "bg-red-900/20 border-red-700"
+                            : "bg-amber-900/20 border-amber-700"
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="text-lg font-medium">
+                            {entry.projectName}
+                          </div>
+                          <Badge 
+                            className={
+                              entry.action === "approved" 
+                                ? "bg-green-600" 
+                                : entry.action === "rejected"
+                                ? "bg-red-600"
+                                : "bg-amber-600"
+                            }
                           >
-                            <Check className="h-4 w-4 mr-1" /> Approve
-                          </Button>
-                          <Button 
-                            size="sm"
-                            variant="outline"
-                            className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
-                            onClick={() => openRequestChangesDialog(project.id)}
-                            disabled={isProcessing}
-                          >
-                            <FileEdit className="h-4 w-4 mr-1" /> Request Changes
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            onClick={() => handleRejectProject(project.id)}
-                            disabled={isProcessing}
-                          >
-                            <X className="h-4 w-4 mr-1" /> Reject
-                          </Button>
+                            {entry.action.charAt(0).toUpperCase() + entry.action.slice(1)}
+                          </Badge>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-400">No pending projects to review</div>
-          )}
-        </CardContent>
-      </Card>
+                        <div className="flex items-center text-sm text-gray-400 mb-1">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {formatDate(entry.timestamp)}
+                        </div>
+                        {entry.notes && (
+                          <div className="mt-2 p-2 bg-gray-800 rounded border border-gray-700 text-gray-300">
+                            <p className="text-sm font-medium mb-1">Feedback Notes:</p>
+                            <p className="text-sm">{entry.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8 text-gray-400">No admin actions recorded yet</div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Request Changes Dialog */}
       <Dialog open={requestChangesOpen} onOpenChange={setRequestChangesOpen}>
