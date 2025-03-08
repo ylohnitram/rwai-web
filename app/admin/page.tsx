@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useState, useEffect } from "react"
 import { Check, X, LogOut, FileEdit } from "lucide-react"
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea"
 import { getSupabaseClient } from "@/lib/supabase"
 import { Project } from "@/types/project"
+import { approveProject, rejectProject, requestChanges } from "../actions"
 
 export default function AdminPage() {
   const [pendingProjects, setPendingProjects] = useState<Project[]>([])
@@ -32,6 +33,7 @@ export default function AdminPage() {
   const [requestChangesOpen, setRequestChangesOpen] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [requestNotes, setRequestNotes] = useState("")
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Correctly fetch pending projects from Supabase
   const fetchPendingProjects = async () => {
@@ -172,28 +174,11 @@ export default function AdminPage() {
   }, []);
 
   const handleApproveProject = async (id: string) => {
+    setIsProcessing(true);
     try {
-      console.log(`Approving project ${id} using direct API`);
+      const result = await approveProject(id);
       
-      // Use the direct update API instead
-      const response = await fetch(`/api/admin/projects/direct-update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id,
-          action: 'approve'
-        }),
-      });
-      
-      // Log the raw response for debugging
-      console.log(`Response status: ${response.status}`);
-      
-      const result = await response.json();
-      console.log('Response data:', result);
-      
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.error || 'Failed to approve project');
       }
       
@@ -208,37 +193,21 @@ export default function AdminPage() {
         pending: prevStats.pending - 1
       }));
       
-      // Show success message
       alert("Project approved successfully");
     } catch (error) {
       console.error("Error approving project:", error);
       alert(`Failed to approve project: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleRejectProject = async (id: string) => {
+    setIsProcessing(true);
     try {
-      console.log(`Rejecting project ${id} using direct API`);
+      const result = await rejectProject(id);
       
-      // Use the direct update API instead
-      const response = await fetch(`/api/admin/projects/direct-update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id,
-          action: 'reject'
-        }),
-      });
-      
-      // Log the raw response for debugging
-      console.log(`Response status: ${response.status}`);
-      
-      const result = await response.json();
-      console.log('Response data:', result);
-      
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.error || 'Failed to reject project');
       }
       
@@ -254,11 +223,12 @@ export default function AdminPage() {
         rejected: (prevStats.rejected || 0) + 1
       }));
       
-      // Show success message
       alert("Project rejected successfully");
     } catch (error) {
       console.error("Error rejecting project:", error);
       alert(`Failed to reject project: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -274,29 +244,11 @@ export default function AdminPage() {
       return;
     }
 
+    setIsProcessing(true);
     try {
-      console.log(`Requesting changes for project ${selectedProjectId} with notes: ${requestNotes} using direct API`);
+      const result = await requestChanges(selectedProjectId, requestNotes);
       
-      // Use the direct update API instead
-      const response = await fetch(`/api/admin/projects/direct-update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: selectedProjectId,
-          action: 'request-changes',
-          notes: requestNotes
-        }),
-      });
-      
-      // Log the raw response for debugging
-      console.log(`Response status: ${response.status}`);
-      
-      const result = await response.json();
-      console.log('Response data:', result);
-      
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.error || 'Failed to request changes');
       }
       
@@ -305,7 +257,7 @@ export default function AdminPage() {
       setSelectedProjectId(null);
       setRequestNotes("");
       
-      // Update the UI - optionally remove from pending list
+      // Update the UI
       setPendingProjects((prev) => prev.filter((project) => project.id !== selectedProjectId));
       
       // Update stats
@@ -314,11 +266,12 @@ export default function AdminPage() {
         pending: prevStats.pending - 1
       }));
       
-      // Show success message
       alert("Changes requested successfully");
     } catch (error) {
       console.error("Error requesting changes:", error);
       alert(`Failed to request changes: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -491,6 +444,7 @@ export default function AdminPage() {
                             size="sm"
                             className="bg-green-600 hover:bg-green-700"
                             onClick={() => handleApproveProject(project.id)}
+                            disabled={isProcessing}
                           >
                             <Check className="h-4 w-4 mr-1" /> Approve
                           </Button>
@@ -499,6 +453,7 @@ export default function AdminPage() {
                             variant="outline"
                             className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
                             onClick={() => openRequestChangesDialog(project.id)}
+                            disabled={isProcessing}
                           >
                             <FileEdit className="h-4 w-4 mr-1" /> Request Changes
                           </Button>
@@ -506,6 +461,7 @@ export default function AdminPage() {
                             size="sm" 
                             variant="destructive" 
                             onClick={() => handleRejectProject(project.id)}
+                            disabled={isProcessing}
                           >
                             <X className="h-4 w-4 mr-1" /> Reject
                           </Button>
@@ -538,11 +494,11 @@ export default function AdminPage() {
             onChange={(e) => setRequestNotes(e.target.value)}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRequestChangesOpen(false)}>
+            <Button variant="outline" onClick={() => setRequestChangesOpen(false)} disabled={isProcessing}>
               Cancel
             </Button>
-            <Button onClick={handleRequestChanges}>
-              Send Feedback
+            <Button onClick={handleRequestChanges} disabled={isProcessing}>
+              {isProcessing ? "Sending..." : "Send Feedback"}
             </Button>
           </DialogFooter>
         </DialogContent>
