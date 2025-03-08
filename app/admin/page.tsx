@@ -242,36 +242,44 @@ export default function AdminPage() {
 
   const handleRequestChanges = async () => {
     if (!selectedProjectId || !requestNotes.trim()) {
+      alert("Please provide feedback notes before submitting");
       return;
     }
 
     try {
+      console.log(`Requesting changes for project ${selectedProjectId} with notes: ${requestNotes}`);
+    
       // Call the admin API endpoint
       const response = await fetch(`/api/admin/projects/${selectedProjectId}/request-changes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ requestNotes }),
+        body: JSON.stringify({ 
+          requestNotes: requestNotes  // Make sure the parameter name matches what the API expects
+        }),
       });
-      
+    
+      // Log the raw response for debugging
+      console.log(`Response status: ${response.status}`);
+    
       const result = await response.json();
-      
+      console.log('Response data:', result);
+    
       if (!response.ok) {
         throw new Error(result.error || 'Failed to request changes');
       }
-      
+    
       // Close dialog and reset fields
       setRequestChangesOpen(false);
       setSelectedProjectId(null);
       setRequestNotes("");
-      
-      // Update UI if needed (could mark as "changes requested" instead of removing)
-      // For now, we'll just keep it in the list
+    
+      // Show success message
       alert("Changes requested successfully");
     } catch (error) {
       console.error("Error requesting changes:", error);
-      alert("Failed to request changes. Please try again.");
+      alert(`Failed to request changes: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
