@@ -43,8 +43,12 @@ export default async function SetupPage() {
       redirect("/");
     }
   }
-  // If Supabase is not configured, we allow access to setup page
   
+  // If we reach here, either Supabase is not configured or the user is an admin
+  return renderSetupPage();
+}
+
+function renderSetupPage() {
   return (
     <div className="container py-8 px-4 md:px-6">
       <div className="mb-8">
