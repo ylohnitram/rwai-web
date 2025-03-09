@@ -3,6 +3,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { ProjectValidation } from '@/lib/services/validation-service'
+import { 
+  sendProjectApprovalEmail, 
+  sendProjectRejectionEmail, 
+  sendRequestChangesEmail 
+} from '@/lib/services/email-service';
 
 // Create a Supabase admin client with the service role key
 const supabaseAdmin = createClient(
@@ -20,6 +25,18 @@ export async function approveProject(id: string) {
   try {
     console.log(`Approving project ${id} with server action`)
     
+    // First get project info to get contact email
+    const { data: project, error: fetchError } = await supabaseAdmin
+      .from('projects')
+      .select('name, contact_email')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching project info:', fetchError)
+      return { success: false, error: fetchError.message }
+    }
+    
     // Update the project with the admin client
     const { data, error } = await supabaseAdmin
       .from('projects')
@@ -36,6 +53,16 @@ export async function approveProject(id: string) {
       return { success: false, error: error.message }
     }
     
+    // Send email notification if project has contact email
+    if (project && project.contact_email) {
+      try {
+        await sendProjectApprovalEmail(project.contact_email, project.name);
+      } catch (emailError) {
+        console.error('Error sending approval email:', emailError);
+        // Continue even if email fails
+      }
+    }
+    
     // Revalidate the admin path to refresh the UI
     revalidatePath('/admin')
     
@@ -49,6 +76,18 @@ export async function approveProject(id: string) {
 export async function rejectProject(id: string) {
   try {
     console.log(`Rejecting project ${id} with server action`)
+    
+    // First get project info to get contact email
+    const { data: project, error: fetchError } = await supabaseAdmin
+      .from('projects')
+      .select('name, contact_email')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching project info:', fetchError)
+      return { success: false, error: fetchError.message }
+    }
     
     // Update the project with the admin client
     const { data, error } = await supabaseAdmin
@@ -64,6 +103,16 @@ export async function rejectProject(id: string) {
     if (error) {
       console.error('Error rejecting project:', error)
       return { success: false, error: error.message }
+    }
+    
+    // Send email notification if project has contact email
+    if (project && project.contact_email) {
+      try {
+        await sendProjectRejectionEmail(project.contact_email, project.name);
+      } catch (emailError) {
+        console.error('Error sending rejection email:', emailError);
+        // Continue even if email fails
+      }
     }
     
     // Revalidate the admin path to refresh the UI
@@ -84,6 +133,18 @@ export async function requestChanges(id: string, notes: string) {
       return { success: false, error: 'Notes are required for requesting changes' }
     }
     
+    // First get project info to get contact email
+    const { data: project, error: fetchError } = await supabaseAdmin
+      .from('projects')
+      .select('name, contact_email')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching project info:', fetchError)
+      return { success: false, error: fetchError.message }
+    }
+    
     // Update the project with the admin client
     const { data, error } = await supabaseAdmin
       .from('projects')
@@ -99,6 +160,16 @@ export async function requestChanges(id: string, notes: string) {
     if (error) {
       console.error('Error requesting changes:', error)
       return { success: false, error: error.message }
+    }
+    
+    // Send email notification if project has contact email
+    if (project && project.contact_email) {
+      try {
+        await sendRequestChangesEmail(project.contact_email, project.name, notes);
+      } catch (emailError) {
+        console.error('Error sending changes request email:', emailError);
+        // Continue even if email fails
+      }
     }
     
     // Revalidate the admin path to refresh the UI
