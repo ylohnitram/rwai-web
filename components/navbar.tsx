@@ -1,76 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, X, Search, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getSupabaseClient } from "@/lib/supabase"
-import type { User } from "@/types/auth"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
+  const { isAdmin } = useAuth()
   const pathname = usePathname()
 
-  // Check if user is authenticated and is admin
-  useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const supabaseClient = getSupabaseClient()
-        const { data: { session } } = await supabaseClient.auth.getSession()
-
-        if (session) {
-          const { data } = await supabaseClient
-            .from("profiles")
-            .select("id, email, role")
-            .eq("id", session.user.id)
-            .single()
-
-          setUser(data as User | null)
-        } else {
-          setUser(null)
-        }
-      } catch (error) {
-        console.error("Error checking user:", error)
-        setUser(null)
-      }
-    }
-
-    checkUser()
-
-    // Set listener for auth state changes
-    try {
-      const supabaseClient = getSupabaseClient()
-      const { data: authListener } = supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-        if (session) {
-          try {
-            const { data } = await supabaseClient
-              .from("profiles")
-              .select("id, email, role")
-              .eq("id", session.user.id)
-              .single()
-
-            setUser(data as User | null)
-          } catch (error) {
-            console.error("Error fetching user profile:", error)
-            setUser(null)
-          }
-        } else {
-          setUser(null)
-        }
-      })
-
-      return () => {
-        authListener?.subscription?.unsubscribe()
-      }
-    } catch (error) {
-      console.error("Error setting up auth listener:", error)
-    }
-  }, [])
-
-  // Check if user is admin
-  const isAdmin = user && user.role === "admin"
+  console.log("Is admin in navbar:", isAdmin) // Debug logging
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-[#0F172A]/90 backdrop-blur-sm">
@@ -119,8 +61,8 @@ export default function Navbar() {
               <Link href="/submit">Submit Project</Link>
             </Button>
 
-            {/* Show Setup only when admin is logged in */}
-            {isAdmin && (
+            {/* Hardcoded true to check if at least the buttons appear */}
+            {(true || isAdmin) && (
               <Button
                 asChild
                 variant="outline"
@@ -133,8 +75,8 @@ export default function Navbar() {
               </Button>
             )}
 
-            {/* Show Admin only when admin is logged in */}
-            {isAdmin && (
+            {/* Hardcoded true to check if at least the buttons appear */}
+            {(true || isAdmin) && (
               <Button asChild variant="ghost" className="text-gray-400 hover:text-white">
                 <Link href="/admin">Admin</Link>
               </Button>
@@ -179,8 +121,8 @@ export default function Navbar() {
               Submit Project
             </Link>
 
-            {/* Show Setup only when admin is logged in */}
-            {isAdmin && (
+            {/* Hardcoded true for testing */}
+            {(true || isAdmin) && (
               <Link
                 href="/setup"
                 className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors flex items-center`}
@@ -191,8 +133,8 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Show Admin only when admin is logged in */}
-            {isAdmin && (
+            {/* Hardcoded true for testing */}
+            {(true || isAdmin) && (
               <Link
                 href="/admin"
                 className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
