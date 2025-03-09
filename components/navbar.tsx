@@ -49,9 +49,12 @@ export default function Navbar() {
             .single()
 
           setUser(data as User | null)
+        } else {
+          setUser(null)
         }
       } catch (error) {
         console.error("Error checking user:", error)
+        setUser(null)
       }
     }
 
@@ -72,6 +75,7 @@ export default function Navbar() {
             setUser(data as User | null)
           } catch (error) {
             console.error("Error fetching user profile:", error)
+            setUser(null)
           }
         } else {
           setUser(null)
@@ -86,7 +90,9 @@ export default function Navbar() {
     }
   }, [isSupabaseConfigured])
 
-  // Always show setup in navbar
+  // Only show setup link if user is admin
+  const isAdmin = user && user.role === "admin"
+  
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-[#0F172A]/90 backdrop-blur-sm">
       <div className="container flex h-16 items-center px-4 sm:px-6">
@@ -115,13 +121,7 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            {/* Always show Setup in main menu */}
-            <Link
-              href="/setup"
-              className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-            >
-              Setup
-            </Link>
+            {/* Removed Setup from here */}
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative rounded-full border border-amber-500/30 bg-gray-900/50">
@@ -141,12 +141,12 @@ export default function Navbar() {
               <Link href="/submit">Submit Project</Link>
             </Button>
 
-            {/* Show Setup button prominently if Supabase is not configured */}
-            {!isSupabaseConfigured && (
+            {/* Setup button with gear icon, only visible for admins */}
+            {isAdmin && (
               <Button
                 asChild
                 variant="outline"
-                className="hidden sm:flex border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                className="hidden sm:flex border-gray-700 hover:border-amber-500 hover:text-amber-500"
               >
                 <Link href="/setup">
                   <Settings className="h-4 w-4 mr-2" />
@@ -156,7 +156,7 @@ export default function Navbar() {
             )}
 
             {/* Admin link is only visible to admin users */}
-            {isSupabaseConfigured && user && user.role === "admin" && (
+            {isAdmin && (
               <Button asChild variant="ghost" className="text-gray-400 hover:text-white">
                 <Link href="/admin">Admin</Link>
               </Button>
@@ -193,14 +193,6 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            {/* Always show Setup in mobile menu */}
-            <Link
-              href="/setup"
-              className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Setup
-            </Link>
             <Link
               href="/submit"
               className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
@@ -209,8 +201,20 @@ export default function Navbar() {
               Submit Project
             </Link>
 
+            {/* Setup link in mobile menu, only visible for admins */}
+            {isAdmin && (
+              <Link
+                href="/setup"
+                className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors flex items-center`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Setup
+              </Link>
+            )}
+
             {/* Admin link is only visible to admin users */}
-            {isSupabaseConfigured && user && user.role === "admin" && (
+            {isAdmin && (
               <Link
                 href="/admin"
                 className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
