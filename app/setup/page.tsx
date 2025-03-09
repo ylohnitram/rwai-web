@@ -1,54 +1,73 @@
-import type { Metadata } from "next";
+'use client'
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getSupabaseClient } from '@/lib/supabase';
 import EnvSetup from "@/components/env-setup";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Setup | TokenDirectory",
-  description: "Supabase setup for TokenDirectory application",
-};
-
-export default async function SetupPage() {
-  // Server-side admin check
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient({ cookies: () => cookieStore });
+export default function SetupPage() {
+  const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Check if Supabase is configured
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Check if Supabase is configured
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        if (!supabaseUrl || !supabaseAnonKey) {
+          // Supabase not configured, allow access
+          setIsAdmin(true);
+          setIsLoading(false);
+          return;
+        }
+        
+        const supabase = getSupabaseClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          router.push('/login?from=/setup');
+          return;
+        }
+        
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (userData?.role !== 'admin') {
+          router.push('/');
+          return;
+        }
+        
+        setIsAdmin(true);
+      } catch (error) {
+        console.error('Error checking auth:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
   
-  // If Supabase is configured, perform auth check
-  if (supabaseUrl && supabaseAnonKey) {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // If not logged in, redirect to login
-    if (!session) {
-      redirect("/login?from=/setup");
-    }
-    
-    // Check if user is admin
-    const { data: userData } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", session.user.id)
-      .single();
-    
-    // If not admin, redirect to home
-    if (userData?.role !== "admin") {
-      redirect("/");
-    }
+  if (isLoading) {
+    return <div className="container py-8 text-center">Loading...</div>;
   }
   
-  // If we reach here, either Supabase is not configured or the user is an admin
-  return renderSetupPage();
-}
-
-function renderSetupPage() {
+  if (!isAdmin) {
+    return null; // Will redirect in the useEffect
+  }
+  
   return (
     <div className="container py-8 px-4 md:px-6">
       <div className="mb-8">
