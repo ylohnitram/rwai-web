@@ -14,11 +14,23 @@ export default function Navbar() {
   const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(true)
   const pathname = usePathname()
 
+  // Check if Supabase environment variables are set
+  useEffect(() => {
+    // Check client-side if vars are missing
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL 
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.log("Supabase environment variables not set")
+      setIsSupabaseConfigured(false)
+    } else {
+      setIsSupabaseConfigured(true)
+    }
+  }, [])
+
   // Check if user is authenticated and is admin
   useEffect(() => {
-    // Check if Supabase environment variables are set
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setIsSupabaseConfigured(false)
+    if (!isSupabaseConfigured) {
       return
     }
 
@@ -72,11 +84,9 @@ export default function Navbar() {
     } catch (error) {
       console.error("Error setting up auth listener:", error)
     }
-  }, [])
+  }, [isSupabaseConfigured])
 
-  // Show setup only for admins or when Supabase is not configured
-  const shouldShowSetup = !isSupabaseConfigured || (user && user.role === "admin")
-
+  // Always show setup in navbar
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-[#0F172A]/90 backdrop-blur-sm">
       <div className="container flex h-16 items-center px-4 sm:px-6">
@@ -105,14 +115,13 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            {shouldShowSetup && (
-              <Link
-                href="/setup"
-                className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-              >
-                Setup
-              </Link>
-            )}
+            {/* Always show Setup in main menu */}
+            <Link
+              href="/setup"
+              className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
+            >
+              Setup
+            </Link>
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative rounded-full border border-amber-500/30 bg-gray-900/50">
@@ -132,8 +141,8 @@ export default function Navbar() {
               <Link href="/submit">Submit Project</Link>
             </Button>
 
-            {/* Show Setup button only for admins or when Supabase is not configured */}
-            {shouldShowSetup && (
+            {/* Show Setup button prominently if Supabase is not configured */}
+            {!isSupabaseConfigured && (
               <Button
                 asChild
                 variant="outline"
@@ -184,15 +193,14 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            {shouldShowSetup && (
-              <Link
-                href="/setup"
-                className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Setup
-              </Link>
-            )}
+            {/* Always show Setup in mobile menu */}
+            <Link
+              href="/setup"
+              className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Setup
+            </Link>
             <Link
               href="/submit"
               className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
