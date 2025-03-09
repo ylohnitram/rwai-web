@@ -1,50 +1,64 @@
 'use client'
 
-import { useState, useEffect } from "react"
-import { LogOut } from "lucide-react"
-import { useToast } from "@/hooks/use-toast" 
+import { useState, useEffect } from "react";
+import { LogOut } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-import { Button } from "@/components/ui/button"
-import { Project } from "@/types/project"
-import { approveProject, rejectProject, requestChanges } from "../actions"
-import { Toaster } from "@/components/ui/toaster"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getSupabaseClient } from "@/lib/supabase"
+import { Button } from "@/components/ui/button";
+import { Project } from "@/types/project";
+import { approveProject, rejectProject, requestChanges } from "../actions";
+import { Toaster } from "@/components/ui/toaster";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getSupabaseClient } from "@/lib/supabase";
+
+// Import validation services
+import { 
+  validateProject, 
+  getValidationResults, 
+  saveValidationResults, 
+  ProjectValidation 
+} from "@/lib/services/validation-service";
 
 // Import our new components
-import { StatsCards } from "@/components/admin/stats-cards"
-import { DistributionCharts } from "@/components/admin/distribution-charts"
-import { PendingProjectsTable } from "@/components/admin/pending-projects-table"
-import { AuditLog } from "@/components/admin/audit-log"
-import { ProjectDetailsDrawer } from "@/components/admin/project-details-drawer"
-import { RequestChangesDialog } from "@/components/admin/request-changes-dialog"
+import { StatsCards } from "@/components/admin/stats-cards";
+import { DistributionCharts } from "@/components/admin/distribution-charts";
+import { PendingProjectsTable } from "@/components/admin/pending-projects-table";
+import { AuditLog } from "@/components/admin/audit-log";
+import { ProjectDetailsDrawer } from "@/components/admin/project-details-drawer";
+import { RequestChangesDialog } from "@/components/admin/request-changes-dialog";
 
 export default function AdminPage() {
-  const { toast } = useToast()
-  const [pendingProjects, setPendingProjects] = useState<Project[]>([])
-  const [isSigningOut, setIsSigningOut] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast();
+  const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
     approved: 0,
     pending: 0,
     averageRoi: 0
-  })
+  });
   const [distribution, setDistribution] = useState({
     byBlockchain: [] as { name: string; value: number }[],
     byAssetType: [] as { name: string; value: number }[]
-  })
+  });
   
   // For request changes dialog
-  const [requestChangesOpen, setRequestChangesOpen] = useState(false)
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-  const [requestNotes, setRequestNotes] = useState("")
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [requestChangesOpen, setRequestChangesOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [requestNotes, setRequestNotes] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // For project details drawer
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [documentUrl, setDocumentUrl] = useState<string | null>(null)
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [whitepaperUrl, setWhitepaperUrl] = useState<string | null>(null);
+  
+  // For validation
+  const [validations, setValidations] = useState<Record<string, ProjectValidation | null>>({});
+  const [currentValidation, setCurrentValidation] = useState<ProjectValidation | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
   
   // For audit log
   const [auditLog, setAuditLog] = useState<Array<{
@@ -54,7 +68,7 @@ export default function AdminPage() {
     projectName: string;
     action: string;
     notes?: string;
-  }>>([])
+  }>>([]);
 
   // Correctly fetch pending projects from Supabase
   const fetchPendingProjects = async () => {
@@ -72,7 +86,24 @@ export default function AdminPage() {
         return [];
       }
       
-      console.log("Fetched pending projects:", data);
+      // For each project, try to fetch its validation results
+      const projectValidations: Record<string, ProjectValidation | null> = {};
+      
+      await Promise.all(
+        data.map(async (project) => {
+          try {
+            const validation = await getValidationResults(project.id);
+            projectValidations[project.id] = validation;
+          } catch (error) {
+            console.error(`Error fetching validation for project ${project.id}:`, error);
+            projectValidations[project.id] = null;
+          }
+        })
+      );
+      
+      // Update validations state
+      setValidations(projectValidations);
+      
       return data as Project[];
     } catch (error) {
       console.error("Error fetching pending projects:", error);
@@ -111,8 +142,6 @@ export default function AdminPage() {
       const averageRoi = roiData && roiData.length > 0
         ? parseFloat((roiData.reduce((sum, project) => sum + (project.roi || 0), 0) / roiData.length).toFixed(1))
         : 0;
-
-      console.log("Stats:", { total, approved, pending, averageRoi });
       
       return { 
         total: total || 0, 
@@ -181,7 +210,7 @@ export default function AdminPage() {
     
     setAuditLog(prev => [logEntry, ...prev]);
     
-    // Optionally, you could also save this to localStorage for persistence
+    // Also save to localStorage for persistence
     try {
       const existingLog = JSON.parse(localStorage.getItem('adminAuditLog') || '[]');
       localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
@@ -190,10 +219,63 @@ export default function AdminPage() {
     }
   };
 
+  // Function to validate a project
+  const handleValidateProject = async (id: string) => {
+    setIsValidating(true);
+    try {
+      // Find the project
+      const project = pendingProjects.find(p => p.id === id);
+      if (!project) {
+        throw new Error('Project not found');
+      }
+      
+      // Run validation
+      const validationResult = await validateProject(project);
+      
+      // Save validation results to the database
+      await saveValidationResults(id, validationResult);
+      
+      // Update state
+      setCurrentValidation(validationResult);
+      setValidations(prev => ({
+        ...prev,
+        [id]: validationResult
+      }));
+      
+      // Log the validation action
+      logAction(
+        id, 
+        project.name, 
+        "validated", 
+        `Risk level: ${validationResult.riskLevel}, Overall: ${validationResult.overallPassed ? 'Passed' : 'Failed'}`
+      );
+      
+      // If project automatically fails validation, show a toast
+      if (!validationResult.overallPassed) {
+        toast({
+          title: "Validation Failed",
+          description: "This project has failed critical validation checks and should be rejected.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error validating project:", error);
+      toast({
+        title: "Validation failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
   // Open project details drawer
   const openProjectDetails = async (project: Project) => {
     setSelectedProject(project);
     setIsDetailsOpen(true);
+    setCurrentValidation(null);
+    setWhitepaperUrl(null);
     
     // If the project has an audit document, get a URL for it
     if (project.audit_document_path) {
@@ -211,9 +293,39 @@ export default function AdminPage() {
     } else {
       setDocumentUrl(null);
     }
+    
+    // Try to get whitepaper URL from project website
+    if (project.website) {
+      // Simplified approach - in a real implementation, you would 
+      // have more project-specific information or metadata
+      const whitepaper = `${project.website.replace(/\/$/, '')}/whitepaper`;
+      setWhitepaperUrl(whitepaper);
+    }
+    
+    // Try to fetch existing validation results
+    try {
+      // First check if we already have it in state
+      if (validations[project.id]) {
+        setCurrentValidation(validations[project.id]);
+      } else {
+        // Fetch from database
+        const validationResults = await getValidationResults(project.id);
+        if (validationResults) {
+          setCurrentValidation(validationResults);
+          // Also update the validations state
+          setValidations(prev => ({
+            ...prev,
+            [project.id]: validationResults
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching validation results:', error);
+      setCurrentValidation(null);
+    }
   };
 
-  // Add this function to refresh stats after any action
+  // Function to refresh stats after any action
   const refreshStats = async () => {
     try {
       // Refresh stats
@@ -223,8 +335,6 @@ export default function AdminPage() {
       // Refresh distribution data
       const distributionData = await fetchProjectDistribution();
       setDistribution(distributionData);
-      
-      console.log("Stats refreshed");
     } catch (error) {
       console.error("Error refreshing stats:", error);
     }
@@ -411,26 +521,26 @@ export default function AdminPage() {
 
   // Handle sign out
   const handleSignOut = async () => {
-    setIsSigningOut(true)
+    setIsSigningOut(true);
     try {
-      const supabase = getSupabaseClient()
+      const supabase = getSupabaseClient();
       
       // Complete server-side sign out
-      await supabase.auth.signOut({ scope: 'global' })
+      await supabase.auth.signOut({ scope: 'global' });
       
       // Clear any cookies or local storage
       document.cookie.split(";").forEach((cookie) => {
-        const [name] = cookie.trim().split("=")
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
-      })
+        const [name] = cookie.trim().split("=");
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      });
       
       // Clear local storage items related to auth
-      localStorage.removeItem('supabase.auth.token')
-      localStorage.removeItem('supabase.auth.expires_at')
-      localStorage.removeItem('supabase.auth.refresh_token')
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('supabase.auth.expires_at');
+      localStorage.removeItem('supabase.auth.refresh_token');
       
       // Clear session storage as well
-      sessionStorage.clear()
+      sessionStorage.clear();
       
       toast({
         title: "Signed out",
@@ -439,25 +549,25 @@ export default function AdminPage() {
       
       // Force a full page reload to ensure all state is cleared
       setTimeout(() => {
-        window.location.href = '/login?signedout=true'
-      }, 1000)
+        window.location.href = '/login?signedout=true';
+      }, 1000);
     } catch (error) {
-      console.error("Error signing out:", error)
+      console.error("Error signing out:", error);
       toast({
         title: "Sign out failed",
         description: "There was a problem signing you out. Please try again.",
         variant: "destructive",
       });
-      setIsSigningOut(false)
+      setIsSigningOut(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
       <div className="container py-8 px-4 md:px-6 text-center">
         <p>Loading admin dashboard...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -504,6 +614,7 @@ export default function AdminPage() {
           {/* Pending Projects Table */}
           <PendingProjectsTable 
             projects={pendingProjects}
+            validations={validations}
             isProcessing={isProcessing}
             onViewDetails={openProjectDetails}
             onApprove={handleApproveProject}
@@ -524,7 +635,11 @@ export default function AdminPage() {
         isOpen={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}
         documentUrl={documentUrl}
+        whitepaperUrl={whitepaperUrl}
+        validation={currentValidation}
+        isValidating={isValidating}
         isProcessing={isProcessing}
+        onValidate={handleValidateProject}
         onApprove={handleApproveProject}
         onRequestChanges={openRequestChangesDialog}
         onReject={handleRejectProject}
@@ -540,5 +655,5 @@ export default function AdminPage() {
         isProcessing={isProcessing}
       />
     </div>
-  )
+  );
 }

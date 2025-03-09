@@ -3,13 +3,19 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { Project } from "@/types/project"
+import { ProjectValidation } from "@/lib/services/validation-service"
+import { ProjectValidationDetails } from "./project-validation-details"
 
 interface ProjectDetailsDrawerProps {
   project: Project | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   documentUrl: string | null;
+  whitepaperUrl: string | null;
+  validation: ProjectValidation | null;
+  isValidating: boolean;
   isProcessing: boolean;
+  onValidate: (id: string) => Promise<void>;
   onApprove: (id: string) => Promise<void>;
   onRequestChanges: (id: string) => void;
   onReject: (id: string) => Promise<void>;
@@ -20,21 +26,43 @@ export function ProjectDetailsDrawer({
   isOpen, 
   onOpenChange, 
   documentUrl,
+  whitepaperUrl,
+  validation,
+  isValidating,
   isProcessing,
+  onValidate,
   onApprove,
   onRequestChanges,
   onReject
 }: ProjectDetailsDrawerProps) {
+  // Function to check if approval should be disabled
+  const shouldDisableApproval = () => {
+    // Disable if processing or validating
+    if (isProcessing || isValidating) return true;
+    
+    // If validation exists and it fails critical checks, disable approval
+    if (validation && !validation.overallPassed) return true;
+    
+    return false;
+  };
+
   return (
     <Drawer open={isOpen} onOpenChange={onOpenChange}>
       <DrawerContent className="bg-gray-900 border-gray-800 max-h-[90vh]">
         <DrawerHeader>
           <DrawerTitle className="text-xl">Project Review: {project?.name}</DrawerTitle>
-          <DrawerDescription>Review project details and automated checks before making a decision</DrawerDescription>
+          <DrawerDescription>Review project details and validation checks before making a decision</DrawerDescription>
         </DrawerHeader>
         <div className="p-6 overflow-auto">
           {project && (
             <div className="space-y-6">
+              {/* Validation section */}
+              <ProjectValidationDetails 
+                validation={validation} 
+                whitepaper={whitepaperUrl}
+                isLoading={isValidating} 
+              />
+              
               {/* Project basic info */}
               <Card className="bg-gray-800 border-gray-700">
                 <CardHeader>
@@ -85,52 +113,6 @@ export function ProjectDetailsDrawer({
                     >
                       {project.website}
                     </a>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Automated Security Checks */}
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader>
-                  <div className="flex items-center">
-                    <Shield className="h-5 w-5 mr-2 text-amber-500" />
-                    <CardTitle>Automated Security Checks</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Mock data for demonstration - in a real implementation, these would come from the project data */}
-                    <div className="flex items-start">
-                      <div className="p-2 rounded-full mr-3 bg-green-900/30">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Scam Database</p>
-                        <p className="text-sm text-gray-400">No matches found</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start">
-                      <div className="p-2 rounded-full mr-3 bg-green-900/30">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Sanctions Check</p>
-                        <p className="text-sm text-gray-400">No sanctions detected</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start">
-                      <div className="p-2 rounded-full mr-3 bg-yellow-900/30">
-                        <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Smart Contract Audit</p>
-                        <p className="text-sm text-gray-400">
-                          {project.audit_document_path ? "Provided" : "Not provided"}
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -199,6 +181,19 @@ export function ProjectDetailsDrawer({
                 >
                   Close
                 </Button>
+                
+                {/* Validate button */}
+                {!validation && !isValidating && (
+                  <Button 
+                    variant="default"
+                    className="mr-auto"
+                    onClick={() => onValidate(project.id)}
+                    disabled={isProcessing}
+                  >
+                    <Shield className="h-4 w-4 mr-1" /> Run Validation
+                  </Button>
+                )}
+                
                 <Button 
                   variant="destructive" 
                   onClick={() => {
@@ -226,7 +221,7 @@ export function ProjectDetailsDrawer({
                     onApprove(project.id);
                     onOpenChange(false);
                   }}
-                  disabled={isProcessing}
+                  disabled={shouldDisableApproval()}
                 >
                   <Check className="h-4 w-4 mr-1" /> Approve
                 </Button>
