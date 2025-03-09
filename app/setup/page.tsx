@@ -94,7 +94,7 @@ export default async function SetupPage() {
 
               <h3 className="text-lg font-medium">3. Set up environment variables</h3>
               <p className="text-gray-300">
-                Create a <code>.env.local</code> file in the project's root directory and add the obtained values:
+                Create a <code>.env.local</code> file in the project&apos;s root directory and add the obtained values:
               </p>
               <pre className="bg-gray-800 p-3 rounded-md text-gray-300 overflow-x-auto">
                 <code>
@@ -167,9 +167,9 @@ export default async function SetupPage() {
               <h3 className="text-lg font-medium">7. Create an admin account</h3>
               <p className="text-gray-300">To create an admin account:</p>
               <ol className="list-decimal pl-5 text-gray-300 space-y-1">
-                <li>Go to the "Authentication" > "Users" section in Supabase</li>
+                <li>Go to the "Authentication" &gt; "Users" section in Supabase</li>
                 <li>Click on "Invite" and enter an email address</li>
-                <li>After the user signs up, access the "Table Editor" > "profiles" table</li>
+                <li>After the user signs up, access the "Table Editor" &gt; "profiles" table</li>
                 <li>Find your user account and change the "role" field value from "user" to "admin"</li>
               </ol>
 
