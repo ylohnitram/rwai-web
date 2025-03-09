@@ -11,13 +11,19 @@ export default function Breadcrumbs() {
 
   const pathSegments = pathname.split("/").filter(Boolean)
 
-  // Create breadcrumb items with proper labels
+  // Create breadcrumb items with proper labels and redirects
   const breadcrumbs = pathSegments.map((segment, index) => {
-    const href = `/${pathSegments.slice(0, index + 1).join("/")}`
-
+    // Special case for "projects" to redirect to "directory"
+    let href = index === 0 && segment === "projects" ? "/directory" : `/${pathSegments.slice(0, index + 1).join("/")}`
+    
     // Format the segment for display (capitalize, replace hyphens)
     let label = segment.replace(/-/g, " ")
     label = label.charAt(0).toUpperCase() + label.slice(1)
+    
+    // Special case for "projects" label
+    if (segment === "projects") {
+      label = "Directory"
+    }
 
     return { href, label }
   })
@@ -48,4 +54,3 @@ export default function Breadcrumbs() {
     </nav>
   )
 }
-
