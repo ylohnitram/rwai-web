@@ -12,8 +12,6 @@ export default function Navbar() {
   const { isAdmin } = useAuth()
   const pathname = usePathname()
 
-  console.log("Is admin in navbar:", isAdmin) // Debug logging
-
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-[#0F172A]/90 backdrop-blur-sm">
       <div className="container flex h-16 items-center px-4 sm:px-6">
@@ -61,8 +59,8 @@ export default function Navbar() {
               <Link href="/submit">Submit Project</Link>
             </Button>
 
-            {/* Hardcoded true to check if at least the buttons appear */}
-            {(true || isAdmin) && (
+            {/* Show Setup only if admin */}
+            {isAdmin && (
               <Button
                 asChild
                 variant="outline"
@@ -75,9 +73,13 @@ export default function Navbar() {
               </Button>
             )}
 
-            {/* Hardcoded true to check if at least the buttons appear */}
-            {(true || isAdmin) && (
-              <Button asChild variant="ghost" className="text-gray-400 hover:text-white">
+            {/* Show Admin only if admin */}
+            {isAdmin && (
+              <Button 
+                asChild 
+                variant="outline"
+                className="hidden sm:flex bg-amber-500 hover:bg-amber-600 text-gray-900 border-0"
+              >
                 <Link href="/admin">Admin</Link>
               </Button>
             )}
@@ -121,8 +123,8 @@ export default function Navbar() {
               Submit Project
             </Link>
 
-            {/* Hardcoded true for testing */}
-            {(true || isAdmin) && (
+            {/* Show Setup only if admin */}
+            {isAdmin && (
               <Link
                 href="/setup"
                 className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors flex items-center`}
@@ -133,8 +135,8 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Hardcoded true for testing */}
-            {(true || isAdmin) && (
+            {/* Show Admin only if admin */}
+            {isAdmin && (
               <Link
                 href="/admin"
                 className="text-sm font-medium text-gray-400 hover:text-white transition-colors"

@@ -1,5 +1,3 @@
-// hooks/use-auth.ts
-
 import { useState, useEffect } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
 import type { User } from '@/types/auth'
@@ -19,29 +17,37 @@ export function useAuth() {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (!session) {
+          console.log("No active session found")
           setUser(null)
           setIsAdmin(false)
+          setIsLoading(false)
           return
         }
+        
+        console.log("Session found, checking profile")
         
         // Get user profile with role
         const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('id, email, role')
-          .eq('id', session.user.id)
+          .from("profiles")
+          .select("id, email, role")
+          .eq("id", session.user.id)
           .single()
           
         if (error || !profile) {
-          console.error('Error fetching user profile:', error)
+          console.error("Error fetching user profile:", error)
           setUser(null)
           setIsAdmin(false)
+          setIsLoading(false)
           return
         }
         
+        const isAdminUser = profile.role === 'admin'
+        console.log("User profile:", profile, "Is admin:", isAdminUser)
+        
         setUser(profile as User)
-        setIsAdmin(profile.role === 'admin')
+        setIsAdmin(isAdminUser)
       } catch (error) {
-        console.error('Auth error:', error)
+        console.error("Auth error:", error)
         setUser(null)
         setIsAdmin(false)
       } finally {
