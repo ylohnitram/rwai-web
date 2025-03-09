@@ -1,4 +1,4 @@
-import { Shield, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { Shield, CheckCircle, AlertTriangle, XCircle, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -8,23 +8,20 @@ interface ProjectSecuritySummaryProps {
   sanctionDetected?: boolean;
   auditVerified?: boolean;
   riskLevel?: "low" | "medium" | "high";
-  showRegionalNotice?: boolean;
-  region?: "US" | "EU" | null;
 }
 
 export default function ProjectSecuritySummary({
   scamReports = 0,
   sanctionDetected = false,
   auditVerified = false,
-  riskLevel = "medium",
-  showRegionalNotice = false,
-  region = null
+  riskLevel = "medium"
 }: ProjectSecuritySummaryProps) {
   // Determine if all checks passed
   const allChecksPassed = scamReports === 0 && !sanctionDetected;
   
   return (
     <div className="space-y-4 mb-6">
+      {/* Technical Security Checks */}
       <Alert className={`${allChecksPassed ? "bg-green-900/30 border-green-800" : "bg-amber-900/30 border-amber-800"}`}>
         <Shield className="h-4 w-4 text-amber-500 mr-2" />
         <AlertTitle className="flex items-center">
@@ -60,27 +57,22 @@ export default function ProjectSecuritySummary({
               Smart contract audit: {auditVerified ? "Verified" : "Unverified"}
             </li>
           </ul>
-          
-          <div className="mt-3 text-amber-200">
-            <p>This token has not been legally validated. It may be regulated as a security (SEC) or ART (MiCA). Always conduct your own due diligence.</p>
-            
-            {showRegionalNotice && region === "EU" && (
-              <p className="mt-2">For EU residents: This token may fall under MiCA regulation. Its compliance status has not been validated.</p>
-            )}
-            
-            {showRegionalNotice && region === "US" && (
-              <p className="mt-2">For US persons: This token may be considered a security under U.S. law. Consult a legal advisor before interacting.</p>
-            )}
-          </div>
         </AlertDescription>
       </Alert>
       
-      <div className="text-xs text-gray-400">
-        This platform serves purely informational purposes. We perform automated scam checks but do not verify legal status or investment potential.
-        <Link href="/legal" className="text-amber-500 hover:underline ml-1">
-          Read Full Disclaimer
-        </Link>
-      </div>
+      {/* Legal Disclaimer */}
+      <Alert className="bg-amber-900/30 border-amber-800">
+        <Info className="h-4 w-4 text-amber-500 mr-2" />
+        <AlertDescription className="text-amber-200">
+          <p>This token has not been legally validated. It may be regulated as a security (SEC) or ART (MiCA). Always conduct your own due diligence.</p>
+          <p className="mt-2 text-sm">
+            This platform serves purely informational purposes. We perform automated scam checks but do not verify legal status or investment potential.
+            <Link href="/legal" className="text-amber-500 hover:underline ml-1">
+              Read Full Disclaimer
+            </Link>
+          </p>
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }

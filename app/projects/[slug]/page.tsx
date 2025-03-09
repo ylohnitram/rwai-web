@@ -1,82 +1,68 @@
-"use client"
-
-import { useState, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft, CheckCircle, ExternalLink } from "lucide-react"
-import { useParams } from "next/navigation"
+import type { Metadata } from "next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import Breadcrumbs from "@/components/breadcrumbs"
 import ProjectSecuritySummary from "@/components/project-security-summary"
 import AuditDocumentViewer from "@/components/audit-document-viewer"
-import { getProjectBySlug } from "@/lib/services/project-service"
-import { Project } from "@/types/project"
+import { getProjectBySlug, getProjects } from "@/lib/services/project-service"
+import { notFound } from "next/navigation"
 
-export default function ProjectPage() {
-  const params = useParams<{ slug: string }>()
-  const [project, setProject] = useState<Project | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [userRegion, setUserRegion] = useState<"US" | "EU" | null>(null)
+interface ProjectPageProps {
+  params: {
+    slug: string
+  }
+}
 
-  useEffect(() => {
-    const fetchProject = async () => {
-      if (!params.slug) return
-      
-      try {
-        const projectData = await getProjectBySlug(params.slug as string)
-        setProject(projectData)
-      } catch (error) {
-        console.error("Error fetching project:", error)
-      } finally {
-        setIsLoading(false)
-      }
+export async function generateStaticParams() {
+  // Fetch all approved projects for static generation
+  const { data: projects } = await getProjects({ status: 'approved', limit: 100 })
+
+  return projects.map((project) => ({
+    slug: generateSlug(project.name),
+  }))
+}
+
+// Helper function to generate slug from project name
+function generateSlug(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
+
+export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
+  const project = await getProjectBySlug(params.slug)
+
+  if (!project) {
+    return {
+      title: "Project Not Found | TokenDirectory by RWA Investors",
     }
-
-    const fetchUserRegion = async () => {
-      try {
-        // Call your existing geolocation API
-        const response = await fetch('/api/geolocation')
-        const data = await response.json()
-        
-        if (data.country) {
-          // EU countries list
-          const euCountries = [
-            'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 
-            'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 
-            'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'
-          ]
-          
-          if (data.country === 'US') {
-            setUserRegion('US')
-          } else if (euCountries.includes(data.country)) {
-            setUserRegion('EU')
-          } else {
-            setUserRegion(null)
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching user region:", error)
-      }
-    }
-
-    fetchProject()
-    fetchUserRegion()
-  }, [params.slug])
-
-  if (isLoading) {
-    return <div className="container py-8 px-4 md:px-6">Loading project details...</div>
   }
 
+  return {
+    title: `${project.name} | TokenDirectory by RWA Investors`,
+    description: project.description,
+    openGraph: {
+      images: [`/api/og?title=${encodeURIComponent(project.name)}`],
+      type: "website",
+      title: `${project.name} | TokenDirectory by RWA Investors`,
+      description: project.description,
+    },
+  }
+}
+
+export default async function ProjectPage({ params }: ProjectPageProps) {
+  const project = await getProjectBySlug(params.slug)
+
   if (!project || project.status !== 'approved') {
-    return <div className="container py-8 px-4 md:px-6">Project not found</div>
+    notFound()
   }
 
   // Determine risk level based on project information
-  const riskLevel = project.audit_document_path ? "low" : "medium"
-  const auditVerified = !!project.audit_document_path
+  const riskLevel = project.audit_document_path ? "low" : "medium";
+  const auditVerified = !!project.audit_document_path;
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -103,14 +89,12 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      {/* Consolidated Security Summary */}
+      {/* Simplified Security Summary (no geolocation) */}
       <ProjectSecuritySummary
         scamReports={0}
         sanctionDetected={false}
         auditVerified={auditVerified}
         riskLevel={riskLevel as any}
-        showRegionalNotice={!!userRegion}
-        region={userRegion}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
