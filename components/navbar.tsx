@@ -74,6 +74,9 @@ export default function Navbar() {
     }
   }, [])
 
+  // Show setup only for admins or when Supabase is not configured
+  const shouldShowSetup = !isSupabaseConfigured || (user && user.role === "admin")
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-[#0F172A]/90 backdrop-blur-sm">
       <div className="container flex h-16 items-center px-4 sm:px-6">
@@ -102,12 +105,14 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            <Link
-              href="/setup"
-              className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-            >
-              Setup
-            </Link>
+            {shouldShowSetup && (
+              <Link
+                href="/setup"
+                className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
+              >
+                Setup
+              </Link>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative rounded-full border border-amber-500/30 bg-gray-900/50">
@@ -127,17 +132,19 @@ export default function Navbar() {
               <Link href="/submit">Submit Project</Link>
             </Button>
 
-            {/* Always show Setup button regardless of Supabase configuration status */}
-            <Button
-              asChild
-              variant="outline"
-              className="hidden sm:flex border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
-            >
-              <Link href="/setup">
-                <Settings className="h-4 w-4 mr-2" />
-                Setup
-              </Link>
-            </Button>
+            {/* Show Setup button only for admins or when Supabase is not configured */}
+            {shouldShowSetup && (
+              <Button
+                asChild
+                variant="outline"
+                className="hidden sm:flex border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+              >
+                <Link href="/setup">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Setup
+                </Link>
+              </Button>
+            )}
 
             {/* Admin link is only visible to admin users */}
             {isSupabaseConfigured && user && user.role === "admin" && (
@@ -177,13 +184,15 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            <Link
-              href="/setup"
-              className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Setup
-            </Link>
+            {shouldShowSetup && (
+              <Link
+                href="/setup"
+                className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Setup
+              </Link>
+            )}
             <Link
               href="/submit"
               className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
