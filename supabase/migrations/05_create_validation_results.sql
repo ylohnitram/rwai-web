@@ -37,3 +37,17 @@ CREATE TRIGGER update_validation_results_updated_at
 BEFORE UPDATE ON public.validation_results
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
+
+-- Add this policy specifically for admin users
+CREATE POLICY "Admins can insert validation results"
+  ON public.validation_results FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+    )
+  );
+
+-- Make sure service role can bypass RLS
+ALTER TABLE public.validation_results ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON public.validation_results TO service_role;

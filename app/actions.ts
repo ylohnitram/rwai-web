@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { ProjectValidation } from '@/lib/services/validation-service'
 
 // Create a Supabase admin client with the service role key
 const supabaseAdmin = createClient(
@@ -106,6 +107,88 @@ export async function requestChanges(id: string, notes: string) {
     return { success: true, data }
   } catch (error: any) {
     console.error('Error in requestChanges:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Add a new action to save validation results
+export async function saveProjectValidation(projectId: string, validation: ProjectValidation) {
+  try {
+    console.log(`Saving validation for project ${projectId} with server action`)
+    
+    // Use the admin client to bypass RLS
+    const { error } = await supabaseAdmin
+      .from('validation_results')
+      .upsert({
+        project_id: projectId,
+        scam_check_passed: validation.scamCheck.passed,
+        scam_check_details: validation.scamCheck.details,
+        sanctions_check_passed: validation.sanctionsCheck.passed,
+        sanctions_check_details: validation.sanctionsCheck.details,
+        audit_check_passed: validation.auditCheck.passed,
+        audit_check_details: validation.auditCheck.details,
+        risk_level: validation.riskLevel,
+        overall_passed: validation.overallPassed,
+        validated_at: new Date().toISOString()
+      })
+    
+    if (error) {
+      console.error('Error saving validation results:', error)
+      return { success: false, error: error.message }
+    }
+    
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error in saveProjectValidation:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// Action to fetch validation results with service role
+export async function fetchValidationResults(projectId: string) {
+  try {
+    console.log(`Fetching validation for project ${projectId} with server action`)
+    
+    const { data, error } = await supabaseAdmin
+      .from('validation_results')
+      .select('*')
+      .eq('project_id', projectId)
+      .single()
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Record not found
+        return { success: true, data: null }
+      }
+      console.error('Error fetching validation results:', error)
+      return { success: false, error: error.message }
+    }
+    
+    if (!data) {
+      return { success: true, data: null }
+    }
+    
+    // Transform to expected validation format
+    const validation = {
+      scamCheck: {
+        passed: data.scam_check_passed,
+        details: data.scam_check_details
+      },
+      sanctionsCheck: {
+        passed: data.sanctions_check_passed,
+        details: data.sanctions_check_details
+      },
+      auditCheck: {
+        passed: data.audit_check_passed,
+        details: data.audit_check_details
+      },
+      riskLevel: data.risk_level,
+      overallPassed: data.overall_passed
+    }
+    
+    return { success: true, data: validation }
+  } catch (error: any) {
+    console.error('Error in fetchValidationResults:', error)
     return { success: false, error: error.message }
   }
 }

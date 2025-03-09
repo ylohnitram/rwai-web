@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
 import { Project } from "@/types/project";
-import { approveProject, rejectProject, requestChanges } from "../actions";
+import { approveProject, rejectProject, requestChanges, saveProjectValidation, fetchValidationResults } from "../actions";
 import { Toaster } from "@/components/ui/toaster";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -14,12 +14,10 @@ import { getSupabaseClient } from "@/lib/supabase";
 // Import validation services
 import { 
   validateProject, 
-  getValidationResults, 
-  saveValidationResults, 
   ProjectValidation 
 } from "@/lib/services/validation-service";
 
-// Import our new components
+// Import our components
 import { StatsCards } from "@/components/admin/stats-cards";
 import { DistributionCharts } from "@/components/admin/distribution-charts";
 import { PendingProjectsTable } from "@/components/admin/pending-projects-table";
@@ -70,7 +68,7 @@ export default function AdminPage() {
     notes?: string;
   }>>([]);
 
-  // Correctly fetch pending projects from Supabase
+  // Fetch pending projects from Supabase
   const fetchPendingProjects = async () => {
     try {
       const supabase = getSupabaseClient();
@@ -86,17 +84,21 @@ export default function AdminPage() {
         return [];
       }
       
-      // For each project, try to fetch its validation results
+      // For each project, try to fetch its validation results using the server action
       const projectValidations: Record<string, ProjectValidation | null> = {};
       
       await Promise.all(
         data.map(async (project) => {
           try {
-            const validation = await getValidationResults(project.id);
-            projectValidations[project.id] = validation;
+            const { success, data: validation, error } = await fetchValidationResults(project.id);
+            
+            if (success && validation) {
+              projectValidations[project.id] = validation;
+            } else if (error) {
+              console.error(`Error fetching validation for project ${project.id}:`, error);
+            }
           } catch (error) {
             console.error(`Error fetching validation for project ${project.id}:`, error);
-            projectValidations[project.id] = null;
           }
         })
       );
@@ -232,8 +234,12 @@ export default function AdminPage() {
       // Run validation
       const validationResult = await validateProject(project);
       
-      // Save validation results to the database
-      await saveValidationResults(id, validationResult);
+      // Save validation results using the server action
+      const saveResult = await saveProjectValidation(id, validationResult);
+      
+      if (!saveResult.success) {
+        throw new Error(`Failed to save validation: ${saveResult.error}`);
+      }
       
       // Update state
       setCurrentValidation(validationResult);
@@ -250,12 +256,18 @@ export default function AdminPage() {
         `Risk level: ${validationResult.riskLevel}, Overall: ${validationResult.overallPassed ? 'Passed' : 'Failed'}`
       );
       
-      // If project automatically fails validation, show a toast
+      // Show appropriate toast based on validation result
       if (!validationResult.overallPassed) {
         toast({
           title: "Validation Failed",
           description: "This project has failed critical validation checks and should be rejected.",
           variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Validation Complete",
+          description: `Risk level: ${validationResult.riskLevel.toUpperCase()}`,
+          className: "bg-green-800 border-green-700 text-white",
         });
       }
     } catch (error) {
@@ -308,14 +320,15 @@ export default function AdminPage() {
       if (validations[project.id]) {
         setCurrentValidation(validations[project.id]);
       } else {
-        // Fetch from database
-        const validationResults = await getValidationResults(project.id);
-        if (validationResults) {
-          setCurrentValidation(validationResults);
+        // Fetch from database using server action
+        const { success, data: validation } = await fetchValidationResults(project.id);
+        
+        if (success && validation) {
+          setCurrentValidation(validation);
           // Also update the validations state
           setValidations(prev => ({
             ...prev,
-            [project.id]: validationResults
+            [project.id]: validation
           }));
         }
       }
