@@ -3,14 +3,23 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, Search, Settings } from "lucide-react"
+import { Menu, X, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useAuth } from "@/hooks/use-auth"
+import dynamic from "next/dynamic"
 
-export default function Navbar() {
+// Dynamically import the admin components with no SSR
+const AdminNavLinks = dynamic(() => import('./admin-nav-links'), { ssr: false })
+const MobileAdminLinks = dynamic(() => import('./mobile-admin-links'), { ssr: false })
+
+interface NavbarProps {
+  isAdmin?: boolean;
+}
+
+export default function Navbar({ isAdmin = false }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { isAdmin } = useAuth()
   const pathname = usePathname()
+
+  console.log("Navbar rendered with isAdmin:", isAdmin)
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-[#0F172A]/90 backdrop-blur-sm">
@@ -59,30 +68,8 @@ export default function Navbar() {
               <Link href="/submit">Submit Project</Link>
             </Button>
 
-            {/* Show Setup only if admin */}
-            {isAdmin && (
-              <Button
-                asChild
-                variant="outline"
-                className="hidden sm:flex border-gray-700 hover:border-amber-500 hover:text-amber-500"
-              >
-                <Link href="/setup">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Setup
-                </Link>
-              </Button>
-            )}
-
-            {/* Show Admin only if admin */}
-            {isAdmin && (
-              <Button 
-                asChild 
-                variant="outline"
-                className="hidden sm:flex bg-amber-500 hover:bg-amber-600 text-gray-900 border-0"
-              >
-                <Link href="/admin">Admin</Link>
-              </Button>
-            )}
+            {/* Conditionally render admin links */}
+            {isAdmin && <AdminNavLinks />}
           </div>
         </nav>
         <div className="md:hidden flex flex-1 justify-end">
@@ -123,28 +110,8 @@ export default function Navbar() {
               Submit Project
             </Link>
 
-            {/* Show Setup only if admin */}
-            {isAdmin && (
-              <Link
-                href="/setup"
-                className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors flex items-center`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Setup
-              </Link>
-            )}
-
-            {/* Show Admin only if admin */}
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Admin
-              </Link>
-            )}
+            {/* Conditionally render mobile admin links */}
+            {isAdmin && <MobileAdminLinks />}
           </nav>
         </div>
       )}
