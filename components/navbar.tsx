@@ -102,12 +102,15 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            <Link
-              href="/setup"
-              className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-            >
-              Setup
-            </Link>
+            {/* Show Setup link only for admin users */}
+            {isSupabaseConfigured && user && user.role === "admin" && (
+              <Link
+                href="/setup"
+                className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
+              >
+                Setup
+              </Link>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative rounded-full border border-amber-500/30 bg-gray-900/50">
@@ -179,13 +182,16 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            <Link
-              href="/setup"
-              className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Setup
-            </Link>
+            {/* Show Setup link only for admin users in mobile menu */}
+            {isSupabaseConfigured && user && user.role === "admin" && (
+              <Link
+                href="/setup"
+                className={`text-sm font-medium ${pathname === "/setup" ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Setup
+              </Link>
+            )}
             <Link
               href="/submit"
               className="text-sm font-medium text-gray-400 hover:text-white transition-colors"

@@ -1,16 +1,50 @@
-import type { Metadata } from "next"
-import EnvSetup from "@/components/env-setup"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import type { Metadata } from "next";
+import EnvSetup from "@/components/env-setup";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Setup | TokenDirectory",
   description: "Supabase setup for TokenDirectory application",
-}
+};
 
-export default function SetupPage() {
+export default async function SetupPage() {
+  // Server-side admin check
+  const cookieStore = cookies();
+  const supabase = createServerComponentClient({ cookies: () => cookieStore });
+  
+  // Check if Supabase is configured
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  // If Supabase is configured, perform auth check
+  if (supabaseUrl && supabaseAnonKey) {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // If not logged in, redirect to login
+    if (!session) {
+      redirect("/login?from=/setup");
+    }
+    
+    // Check if user is admin
+    const { data: userData } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", session.user.id)
+      .single();
+    
+    // If not admin, redirect to home
+    if (userData?.role !== "admin") {
+      redirect("/");
+    }
+  }
+  // If Supabase is not configured, we allow access to setup page
+  
   return (
     <div className="container py-8 px-4 md:px-6">
       <div className="mb-8">
@@ -39,7 +73,7 @@ export default function SetupPage() {
               <h3 className="text-lg font-medium">1. Create a Supabase project</h3>
               <p className="text-gray-300">
                 Sign up on{" "}
-                <a
+                
                   href="https://supabase.com"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -88,6 +122,5 @@ export default function SetupPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
-
