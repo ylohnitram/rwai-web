@@ -1,72 +1,82 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft, CheckCircle, ExternalLink } from "lucide-react"
-import type { Metadata } from "next"
+import { useParams } from "next/navigation"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import Breadcrumbs from "@/components/breadcrumbs"
-import GeolocationWarning from "@/components/geolocation-warning"
-import LegalDisclaimer from "@/components/legal-disclaimer"
-import RiskSummary from "@/components/risk-summary"
+import ProjectSecuritySummary from "@/components/project-security-summary"
 import AuditDocumentViewer from "@/components/audit-document-viewer"
-import TokenCheckResult from "@/components/token-check-result"
-import { getProjectBySlug, getProjects } from "@/lib/services/project-service"
-import { notFound } from "next/navigation"
+import { getProjectBySlug } from "@/lib/services/project-service"
+import { Project } from "@/types/project"
 
-interface ProjectPageProps {
-  params: {
-    slug: string
-  }
-}
+export default function ProjectPage() {
+  const params = useParams<{ slug: string }>()
+  const [project, setProject] = useState<Project | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [userRegion, setUserRegion] = useState<"US" | "EU" | null>(null)
 
-export async function generateStaticParams() {
-  // Fetch all approved projects for static generation
-  const { data: projects } = await getProjects({ status: 'approved', limit: 100 })
-
-  return projects.map((project) => ({
-    slug: generateSlug(project.name),
-  }))
-}
-
-// Helper function to generate slug from project name
-function generateSlug(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-}
-
-export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
-  const project = await getProjectBySlug(params.slug)
-
-  if (!project) {
-    return {
-      title: "Project Not Found | TokenDirectory by RWA Investors",
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!params.slug) return
+      
+      try {
+        const projectData = await getProjectBySlug(params.slug as string)
+        setProject(projectData)
+      } catch (error) {
+        console.error("Error fetching project:", error)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }
 
-  return {
-    title: `${project.name} | TokenDirectory by RWA Investors`,
-    description: project.description,
-    openGraph: {
-      images: [`/api/og?title=${encodeURIComponent(project.name)}`],
-      type: "website",
-      title: `${project.name} | TokenDirectory by RWA Investors`,
-      description: project.description,
-    },
-  }
-}
+    const fetchUserRegion = async () => {
+      try {
+        // Call your existing geolocation API
+        const response = await fetch('/api/geolocation')
+        const data = await response.json()
+        
+        if (data.country) {
+          // EU countries list
+          const euCountries = [
+            'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 
+            'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 
+            'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'
+          ]
+          
+          if (data.country === 'US') {
+            setUserRegion('US')
+          } else if (euCountries.includes(data.country)) {
+            setUserRegion('EU')
+          } else {
+            setUserRegion(null)
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user region:", error)
+      }
+    }
 
-export default async function ProjectPage({ params }: ProjectPageProps) {
-  const project = await getProjectBySlug(params.slug)
+    fetchProject()
+    fetchUserRegion()
+  }, [params.slug])
+
+  if (isLoading) {
+    return <div className="container py-8 px-4 md:px-6">Loading project details...</div>
+  }
 
   if (!project || project.status !== 'approved') {
-    notFound()
+    return <div className="container py-8 px-4 md:px-6">Project not found</div>
   }
 
   // Determine risk level based on project information
-  // In a real implementation, this would come from a more sophisticated risk assessment system
-  const riskLevel = project.audit_document_path ? "low" : "medium";
-  const auditVerified = !!project.audit_document_path;
+  const riskLevel = project.audit_document_path ? "low" : "medium"
+  const auditVerified = !!project.audit_document_path
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -93,13 +103,14 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
       </div>
 
-      {/* Risk Summary Component */}
-      <RiskSummary
-        projectId={project.id}
-        riskLevel={riskLevel as any}
+      {/* Consolidated Security Summary */}
+      <ProjectSecuritySummary
         scamReports={0}
         sanctionDetected={false}
         auditVerified={auditVerified}
+        riskLevel={riskLevel as any}
+        showRegionalNotice={!!userRegion}
+        region={userRegion}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -126,8 +137,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             <CardHeader>
               <CardTitle>Key Metrics</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-gray-400">Asset Type</p>
                   <p className="text-lg font-semibold">{project.type}</p>
@@ -179,17 +190,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      {/* Add Token Warning and Geolocation Warning at the bottom */}
-      <div className="mt-8">
-        <TokenCheckResult
-          scamReports={0}
-          sanctionDetected={false}
-          auditVerified={auditVerified}
-        />
-        <GeolocationWarning />
-        <LegalDisclaimer />
       </div>
     </div>
   )
