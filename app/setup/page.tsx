@@ -100,23 +100,96 @@ export default async function SetupPage() {
                 <code>
                   NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co{"\n"}
                   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key{"\n"}
-                  SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+                  SUPABASE_SERVICE_ROLE_KEY=your-service-role-key{"\n"}
+                  REVALIDATION_TOKEN=choose-a-secure-random-token-here{"\n"}
+                  IPINFO_TOKEN=your-ipinfo-token-if-using-geolocation
                 </code>
               </pre>
 
-              <h3 className="text-lg font-medium">4. Create database tables</h3>
+              <h3 className="text-lg font-medium">4. Run database migrations</h3>
               <p className="text-gray-300">
-                In the Supabase dashboard, go to "SQL Editor" and run the SQL code from the file{" "}
-                <code>supabase/schema.sql</code>.
+                In the Supabase dashboard, go to "SQL Editor" and run the migrations in the correct order:
+              </p>
+              <ol className="list-decimal pl-5 text-gray-300 space-y-1">
+                <li><code>supabase/schema.sql</code> - Basic user profiles setup</li>
+                <li><code>supabase/migrations/01_create_projects.sql</code> - Projects table</li>
+                <li><code>supabase/migrations/02_create_blog_posts.sql</code> - Blog posts table</li>
+                <li><code>supabase/migrations/03_enhance_projects_schema.sql</code> - Project workflow fields</li>
+                <li><code>supabase/migrations/04_fix_rls_policies.sql</code> - Fix permissions</li>
+                <li><code>supabase/migrations/05_create_validation_results.sql</code> - Validation system</li>
+              </ol>
+              <p className="text-gray-300 mt-2">
+                Alternatively, you can use the migration script with the service role key:
+              </p>
+              <pre className="bg-gray-800 p-3 rounded-md text-gray-300 overflow-x-auto">
+                <code>npm run migrate</code>
+              </pre>
+
+              <h3 className="text-lg font-medium">5. Set up storage buckets</h3>
+              <p className="text-gray-300">
+                In the Supabase dashboard, go to "Storage" and create the following buckets:
+              </p>
+              <ul className="list-disc pl-5 text-gray-300 space-y-1">
+                <li><strong>audit-documents</strong> - For project audit reports and documents</li>
+              </ul>
+              <p className="text-gray-300 mt-2">
+                Set appropriate bucket policies for each:
+              </p>
+              <pre className="bg-gray-800 p-3 rounded-md text-gray-300 overflow-x-auto">
+                <code>
+                  // For audit-documents bucket{"\n"}
+                  // Only admins can insert, but everyone can download public files{"\n"}
+                  {"CREATE POLICY \"Authenticated users can upload\" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'audit-documents');"}
+                </code>
+              </pre>
+
+              <h3 className="text-lg font-medium">6. Fix permissions for validation</h3>
+              <p className="text-gray-300">
+                Run the following SQL to ensure proper service role permissions for validation:
+              </p>
+              <pre className="bg-gray-800 p-3 rounded-md text-gray-300 overflow-x-auto">
+                <code>
+                  {"-- Grant necessary permissions to service_role\n"}
+                  {"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO service_role;\n"}
+                  {"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO service_role;\n\n"}
+                  {"-- Grant access to auth schema for user references\n"}
+                  {"GRANT USAGE ON SCHEMA auth TO service_role;\n"}
+                  {"GRANT SELECT ON auth.users TO service_role;\n\n"}
+                  {"-- Create policy that allows service_role to bypass RLS on validation_results table\n"}
+                  {"CREATE POLICY \"service_role can do all on validation_results\"\n"}
+                  {"ON public.validation_results\n"}
+                  {"FOR ALL\n"}
+                  {"USING (auth.role() = 'service_role')\n"}
+                  {"WITH CHECK (auth.role() = 'service_role');"}
+                </code>
+              </pre>
+
+              <h3 className="text-lg font-medium">7. Create an admin account</h3>
+              <p className="text-gray-300">To create an admin account:</p>
+              <ol className="list-decimal pl-5 text-gray-300 space-y-1">
+                <li>Go to the "Authentication" > "Users" section in Supabase</li>
+                <li>Click on "Invite" and enter an email address</li>
+                <li>After the user signs up, access the "Table Editor" > "profiles" table</li>
+                <li>Find your user account and change the "role" field value from "user" to "admin"</li>
+              </ol>
+
+              <h3 className="text-lg font-medium">8. Set up notifications (optional)</h3>
+              <p className="text-gray-300">
+                For email notifications to work, add a third-party email service (e.g., SendGrid, Mailgun)
+                integration and add their API keys to your environment variables.
               </p>
 
-              <h3 className="text-lg font-medium">5. Create an admin account</h3>
+              <h3 className="text-lg font-medium">9. Set up geolocation (optional)</h3>
               <p className="text-gray-300">
-                Follow the instructions in the SETUP.md file to create an administrator account.
+                To enable geolocation for region-specific compliance notices:
               </p>
+              <ol className="list-decimal pl-5 text-gray-300 space-y-1">
+                <li>Sign up for an account at <a href="https://ipinfo.io/" target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline">IPInfo.io</a> or similar service</li>
+                <li>Add your API token to the <code>IPINFO_TOKEN</code> environment variable</li>
+              </ol>
 
-              <h3 className="text-lg font-medium">6. Restart the application</h3>
-              <p className="text-gray-300">After setting all environment variables, restart the application.</p>
+              <h3 className="text-lg font-medium">10. Restart the application</h3>
+              <p className="text-gray-300">After setting all environment variables and database settings, restart the application.</p>
             </CardContent>
           </Card>
         </div>
