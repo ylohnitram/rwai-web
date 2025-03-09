@@ -103,13 +103,13 @@ export default function SubmitPage() {
         // Store contact email and audit document path
         contact_email: values.contactEmail,
         audit_document_path: values.auditDocumentPath,
-        // For backwards compatibility
-        auditUrl: auditDocumentUrl || `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
+        // Add explicit auditUrl field
+        audit_url: auditDocumentUrl || `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
       }
-      
+    
       // Submit to database
       await createProject(projectData)
-      
+    
       setIsSubmitted(true)
     } catch (err) {
       console.error("Error submitting project:", err)

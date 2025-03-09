@@ -145,15 +145,21 @@ export async function getFeaturedProjects(limit: number = 3): Promise<Project[]>
 export async function createProject(project: Omit<Project, 'id'>): Promise<Project> {
   const supabase = getSupabaseClient();
   
-  // Ensure we set the initial status to pending
-  const projectWithStatus = {
+  // Make sure we're using the correct column name for auditUrl
+  const projectData = {
     ...project,
-    status: 'pending' as ProjectStatus,
+    // Ensure we're using the right field name (audit_url) for the database
+    audit_url: project.auditUrl || project.audit_url,
   };
+  
+  // Remove any fields that might not exist in the database schema
+  if ('auditUrl' in projectData) {
+    delete projectData['auditUrl'];
+  }
   
   const { data, error } = await supabase
     .from("projects")
-    .insert(projectWithStatus)
+    .insert(projectData)
     .select()
     .single();
 
