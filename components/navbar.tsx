@@ -11,35 +11,14 @@ import type { User } from "@/types/auth"
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
-  const [isSupabaseConfigured, setIsSupabaseConfigured] = useState(true)
   const pathname = usePathname()
-
-  // Check if Supabase environment variables are set
-  useEffect(() => {
-    // Check client-side if vars are missing
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL 
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.log("Supabase environment variables not set")
-      setIsSupabaseConfigured(false)
-    } else {
-      setIsSupabaseConfigured(true)
-    }
-  }, [])
 
   // Check if user is authenticated and is admin
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      return
-    }
-
     const checkUser = async () => {
       try {
         const supabaseClient = getSupabaseClient()
-        const {
-          data: { session },
-        } = await supabaseClient.auth.getSession()
+        const { data: { session } } = await supabaseClient.auth.getSession()
 
         if (session) {
           const { data } = await supabaseClient
@@ -60,8 +39,8 @@ export default function Navbar() {
 
     checkUser()
 
+    // Set listener for auth state changes
     try {
-      // Set listener for auth state changes
       const supabaseClient = getSupabaseClient()
       const { data: authListener } = supabaseClient.auth.onAuthStateChange(async (_event, session) => {
         if (session) {
@@ -88,11 +67,11 @@ export default function Navbar() {
     } catch (error) {
       console.error("Error setting up auth listener:", error)
     }
-  }, [isSupabaseConfigured])
+  }, [])
 
-  // Only show setup link if user is admin
+  // Check if user is admin
   const isAdmin = user && user.role === "admin"
-  
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-800 bg-[#0F172A]/90 backdrop-blur-sm">
       <div className="container flex h-16 items-center px-4 sm:px-6">
@@ -121,7 +100,6 @@ export default function Navbar() {
             >
               Blog
             </Link>
-            {/* Removed Setup from here */}
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative rounded-full border border-amber-500/30 bg-gray-900/50">
@@ -141,7 +119,7 @@ export default function Navbar() {
               <Link href="/submit">Submit Project</Link>
             </Button>
 
-            {/* Setup button with gear icon, only visible for admins */}
+            {/* Show Setup only when admin is logged in */}
             {isAdmin && (
               <Button
                 asChild
@@ -155,7 +133,7 @@ export default function Navbar() {
               </Button>
             )}
 
-            {/* Admin link is only visible to admin users */}
+            {/* Show Admin only when admin is logged in */}
             {isAdmin && (
               <Button asChild variant="ghost" className="text-gray-400 hover:text-white">
                 <Link href="/admin">Admin</Link>
@@ -201,7 +179,7 @@ export default function Navbar() {
               Submit Project
             </Link>
 
-            {/* Setup link in mobile menu, only visible for admins */}
+            {/* Show Setup only when admin is logged in */}
             {isAdmin && (
               <Link
                 href="/setup"
@@ -213,7 +191,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Admin link is only visible to admin users */}
+            {/* Show Admin only when admin is logged in */}
             {isAdmin && (
               <Link
                 href="/admin"
@@ -223,17 +201,6 @@ export default function Navbar() {
                 Admin
               </Link>
             )}
-
-            <div className="pt-2">
-              <div className="relative rounded-full border border-amber-500/30 bg-gray-900/50">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search Projects"
-                  className="h-10 w-full rounded-full bg-transparent pl-10 pr-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
-              </div>
-            </div>
           </nav>
         </div>
       )}
