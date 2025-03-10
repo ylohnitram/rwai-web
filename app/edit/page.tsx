@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -93,6 +93,16 @@ function EditProjectContent() {
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editFormSchema),
     // Default values will be set when project is loaded
+    defaultValues: {
+      name: "",
+      description: "",
+      type: "",
+      blockchain: "",
+      roi: 0,
+      website: "",
+      contactEmail: "",
+      tvl: "",
+    }
   })
   
   const handleFileUploaded = (filePath: string, fileUrl: string) => {
@@ -164,12 +174,6 @@ function EditProjectContent() {
   }
   
   // Load project directly from ID if provided
-  useState(() => {
-    if (projectId) {
-      loadProjectFromId(projectId)
-    }
-  })
-  
   const loadProjectFromId = async (id: string) => {
     setIsSearching(true)
     setError(null)
@@ -227,6 +231,13 @@ function EditProjectContent() {
       setIsSearching(false)
     }
   }
+  
+  // Use useEffect instead of useState for initialization
+  useEffect(() => {
+    if (projectId) {
+      loadProjectFromId(projectId)
+    }
+  }, [projectId])
   
   // Submit updated project
   async function onSubmit(values: EditFormValues) {
