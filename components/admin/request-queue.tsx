@@ -18,6 +18,7 @@ export function RequestQueue({
   const [pendingProjects, setPendingProjects] = useState<Project[]>([])
   const [changesProjects, setChangesProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<string>("pending")
   
   useEffect(() => {
     fetchProjects()
@@ -29,10 +30,19 @@ export function RequestQueue({
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'projects',
-        filter: `status=in.(pending,changes_requested)`
-      }, () => {
+        table: 'projects'
+      }, (payload) => {
+        // Always refresh both tabs when any project changes
         fetchProjects()
+        
+        // If a status change happened and it's relevant to our tabs, show notification
+        if (payload.old && payload.new && payload.old.status !== payload.new.status) {
+          // If project moved from changes_requested to pending, highlight it
+          if (payload.old.status === 'changes_requested' && payload.new.status === 'pending') {
+            console.log("Project updated and ready for review:", payload.new.name)
+            // Could add a toast notification here
+          }
+        }
       })
       .subscribe()
     
@@ -46,30 +56,31 @@ export function RequestQueue({
     try {
       const supabase = getSupabaseClient()
       
-      // Fetch pending projects
-      const { data: pendingData, error: pendingError } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
+      // Fetch both types of projects simultaneously
+      const [pendingResponse, changesResponse] = await Promise.all([
+        supabase
+          .from("projects")
+          .select("*")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
+          
+        supabase
+          .from("projects")
+          .select("*")
+          .eq("status", "changes_requested")
+          .order("updated_at", { ascending: false })
+      ])
       
-      if (pendingError) {
-        console.error("Error fetching pending projects:", pendingError)
+      if (pendingResponse.error) {
+        console.error("Error fetching pending projects:", pendingResponse.error)
       } else {
-        setPendingProjects(pendingData || [])
+        setPendingProjects(pendingResponse.data || [])
       }
       
-      // Fetch projects with requested changes
-      const { data: changesData, error: changesError } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("status", "changes_requested")
-        .order("updated_at", { ascending: false })
-      
-      if (changesError) {
-        console.error("Error fetching changes requested projects:", changesError)
+      if (changesResponse.error) {
+        console.error("Error fetching changes requested projects:", changesResponse.error)
       } else {
-        setChangesProjects(changesData || [])
+        setChangesProjects(changesResponse.data || [])
       }
     } catch (error) {
       console.error("Error fetching projects:", error)
@@ -94,7 +105,11 @@ export function RequestQueue({
         <CardDescription>Submissions awaiting review or updates</CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="pending">
+        <Tabs 
+          defaultValue="pending" 
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value)}
+        >
           <TabsList className="bg-gray-800 border border-gray-700 mb-4">
             <TabsTrigger value="pending">
               New Submissions
@@ -193,6 +208,15 @@ export function RequestQueue({
             )}
           </TabsContent>
         </Tabs>
+        <div className="flex justify-end mt-4">
+          <Button 
+            variant="outline" 
+            onClick={fetchProjects}
+            size="sm"
+          >
+            Refresh Queue
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )
