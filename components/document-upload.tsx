@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useRef } from "react"
 import { UploadCloud, File, AlertCircle, CheckCircle, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,6 +13,7 @@ interface DocumentUploadProps {
   description?: string
   bucketName?: string
   filePath?: string
+  initialFilePath?: string // Add this prop to handle existing files
 }
 
 export default function DocumentUpload({
@@ -26,12 +25,13 @@ export default function DocumentUpload({
   description = "Upload your project's audit report (PDF, DOC, or DOCX)",
   bucketName = "audit-documents",
   filePath = "",
+  initialFilePath = "", // Default to empty string instead of undefined
 }: DocumentUploadProps) {
   const [file, setFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isSuccess, setIsSuccess] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(!!initialFilePath) // Set to true if initial file exists
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const maxSizeBytes = maxSizeMB * 1024 * 1024 // Convert MB to bytes
@@ -137,6 +137,9 @@ export default function DocumentUpload({
     }
   }
 
+  // If there's already a file uploaded (initialFilePath is set)
+  const hasExistingFile = !!initialFilePath && !file && isSuccess
+
   return (
     <div className="w-full">
       <div className="mb-2">
@@ -144,7 +147,7 @@ export default function DocumentUpload({
         <p className="text-xs text-gray-400">{description}</p>
       </div>
 
-      {!file ? (
+      {!file && !hasExistingFile ? (
         <div 
           className={`border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center cursor-pointer ${
             error ? "border-red-500 bg-red-500/10" : "border-gray-700 hover:border-amber-500/50 hover:bg-gray-800"
@@ -171,8 +174,9 @@ export default function DocumentUpload({
             <div className="flex items-center">
               <File className="h-8 w-8 mr-2 text-blue-400" />
               <div>
-                <p className="text-sm font-medium">{file.name}</p>
-                <p className="text-xs text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p className="text-sm font-medium">{file ? file.name : initialFilePath.split('/').pop()}</p>
+                {file && <p className="text-xs text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>}
+                {hasExistingFile && <p className="text-xs text-gray-400">Existing document</p>}
               </div>
             </div>
             
@@ -197,7 +201,7 @@ export default function DocumentUpload({
           {isSuccess ? (
             <div className="flex items-center text-green-500 text-sm mt-2">
               <CheckCircle className="h-4 w-4 mr-1" />
-              Document uploaded successfully
+              {hasExistingFile ? "Existing document will be kept" : "Document uploaded successfully"}
             </div>
           ) : (
             <Button

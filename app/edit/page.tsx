@@ -565,12 +565,13 @@ function EditProjectContent() {
                             description="You can upload a new audit document or keep your existing one"
                             bucketName="audit-documents"
                             filePath={`${Date.now()}_${editForm.getValues('name').replace(/\s+/g, '_')}_audit`}
+                            initialFilePath={project?.audit_document_path || ""}
                           />
                         </FormControl>
                         <FormDescription>
                           {project?.audit_document_path ? 
-                            "You already have an audit document. Upload a new one only if you want to replace it." :
-                            "Providing an audit document can speed up the review process but is not required."}
+                          "You already have an audit document. Upload a new one only if you want to replace it." :
+                          "Providing an audit document can speed up the review process but is not required."}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
