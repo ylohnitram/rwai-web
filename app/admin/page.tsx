@@ -1,3 +1,4 @@
+// app/admin/page.tsx
 'use client'
 
 import { useState, useEffect } from "react";
@@ -24,6 +25,9 @@ import { PendingProjectsTable } from "@/components/admin/pending-projects-table"
 import { AuditLog } from "@/components/admin/audit-log";
 import { ProjectDetailsDrawer } from "@/components/admin/project-details-drawer";
 import { RequestChangesDialog } from "@/components/admin/request-changes-dialog";
+import NotificationCenter from "@/components/admin/notification-center";
+import { RequestQueue } from "@/components/admin/request-queue";
+import { ActivityFeed } from "@/components/admin/activity-feed";
 
 export default function AdminPage() {
   const { toast } = useToast();
@@ -386,6 +390,41 @@ export default function AdminPage() {
         } catch (error) {
           console.error("Error loading audit log:", error);
         }
+        
+        // Set up real-time subscription for project changes
+        const supabase = getSupabaseClient();
+        
+        // Subscribe to project table changes
+        const subscription = supabase
+          .channel('projects-changes')
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'projects'
+          }, (payload) => {
+            // Handle new project added
+            fetchPendingProjects().then(data => setPendingProjects(data));
+            refreshStats();
+          })
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'projects'
+          }, (payload) => {
+            // Handle project updates
+            const updatedProject = payload.new as Project;
+            
+            // If status changed, refresh projects list and stats
+            if (payload.old.status !== updatedProject.status) {
+              fetchPendingProjects().then(data => setPendingProjects(data));
+              refreshStats();
+            }
+          })
+          .subscribe();
+        
+        return () => {
+          supabase.removeChannel(subscription);
+        };
       } catch (error) {
         console.error("Error loading admin data:", error);
         toast({
@@ -559,7 +598,7 @@ export default function AdminPage() {
         title: "Signed out",
         description: "You have been successfully signed out.",
       });
-      
+
       // Force a full page reload to ensure all state is cleared
       setTimeout(() => {
         window.location.href = '/login?signedout=true';
@@ -591,15 +630,20 @@ export default function AdminPage() {
           <h1 className="text-3xl font-bold tracking-tighter mb-2">Admin Dashboard</h1>
           <p className="text-gray-400">Manage directory projects and view platform statistics</p>
         </div>
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2 border-gray-700 hover:border-red-500 hover:text-red-500"
-          onClick={handleSignOut}
-          disabled={isSigningOut}
-        >
-          <LogOut className="h-4 w-4" />
-          {isSigningOut ? "Signing Out..." : "Sign Out"}
-        </Button>
+        <div className="flex items-center gap-4">
+          {/* Notification center */}
+          <NotificationCenter />
+          
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 border-gray-700 hover:border-red-500 hover:text-red-500"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+          >
+            <LogOut className="h-4 w-4" />
+            {isSigningOut ? "Signing Out..." : "Sign Out"}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -610,10 +654,16 @@ export default function AdminPage() {
         averageRoi={stats.averageRoi}
       />
 
-      {/* Tabs for Projects and Audit Log */}
+      {/* Request Queue */}
+      <div className="mb-8">
+        <RequestQueue onViewProject={openProjectDetails} />
+      </div>
+
+      {/* Tabs for Projects, Activity, and Audit Log */}
       <Tabs defaultValue="projects" className="mb-8">
         <TabsList className="bg-gray-900 border border-gray-800">
           <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
         
@@ -634,6 +684,11 @@ export default function AdminPage() {
             onRequestChanges={openRequestChangesDialog}
             onReject={handleRejectProject}
           />
+        </TabsContent>
+        
+        <TabsContent value="activity">
+          {/* Activity Feed */}
+          <ActivityFeed />
         </TabsContent>
         
         <TabsContent value="audit">
@@ -669,4 +724,4 @@ export default function AdminPage() {
       />
     </div>
   );
-}
+} 

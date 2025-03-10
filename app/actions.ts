@@ -21,6 +21,30 @@ const supabaseAdmin = createClient(
   }
 )
 
+// Function to log admin actions
+async function logAdminAction(
+  action: string,
+  projectId: string,
+  projectName: string,
+  adminId: string,
+  status?: string
+) {
+  try {
+    await supabaseAdmin
+      .from('admin_activities')
+      .insert({
+        action,
+        project_id: projectId,
+        project_name: projectName,
+        admin_id: adminId,
+        status
+      })
+  } catch (error) {
+    console.error('Error logging admin action:', error)
+    // Continue even if logging fails
+  }
+}
+
 export async function approveProject(id: string) {
   try {
     console.log(`Approving project ${id} with server action`)
@@ -37,13 +61,18 @@ export async function approveProject(id: string) {
       return { success: false, error: fetchError.message }
     }
     
+    // Get current user session for admin ID
+    const { data: { session } } = await supabaseAdmin.auth.getSession();
+    const adminId = session?.user?.id;
+    
     // Update the project with the admin client
     const { data, error } = await supabaseAdmin
       .from('projects')
       .update({ 
         status: 'approved',
         approved: true, // For backwards compatibility
-        reviewed_at: new Date().toISOString()
+        reviewed_at: new Date().toISOString(),
+        reviewer_id: adminId
       })
       .eq('id', id)
       .select()
@@ -51,6 +80,11 @@ export async function approveProject(id: string) {
     if (error) {
       console.error('Error approving project:', error)
       return { success: false, error: error.message }
+    }
+    
+    // Log the admin action
+    if (adminId && project) {
+      await logAdminAction('approved', id, project.name, adminId, 'approved')
     }
     
     // Send email notification if project has contact email
@@ -89,13 +123,18 @@ export async function rejectProject(id: string) {
       return { success: false, error: fetchError.message }
     }
     
+    // Get current user session for admin ID
+    const { data: { session } } = await supabaseAdmin.auth.getSession();
+    const adminId = session?.user?.id;
+    
     // Update the project with the admin client
     const { data, error } = await supabaseAdmin
       .from('projects')
       .update({ 
         status: 'rejected',
         approved: false, // For backwards compatibility
-        reviewed_at: new Date().toISOString()
+        reviewed_at: new Date().toISOString(),
+        reviewer_id: adminId
       })
       .eq('id', id)
       .select()
@@ -103,6 +142,11 @@ export async function rejectProject(id: string) {
     if (error) {
       console.error('Error rejecting project:', error)
       return { success: false, error: error.message }
+    }
+    
+    // Log the admin action
+    if (adminId && project) {
+      await logAdminAction('rejected', id, project.name, adminId, 'rejected')
     }
     
     // Send email notification if project has contact email
@@ -145,6 +189,10 @@ export async function requestChanges(id: string, notes: string) {
       return { success: false, error: fetchError.message }
     }
     
+    // Get current user session for admin ID
+    const { data: { session } } = await supabaseAdmin.auth.getSession();
+    const adminId = session?.user?.id;
+    
     // Update the project with the admin client
     const { data, error } = await supabaseAdmin
       .from('projects')
@@ -152,7 +200,8 @@ export async function requestChanges(id: string, notes: string) {
         status: 'changes_requested',
         approved: false, // For backwards compatibility
         review_notes: notes,
-        reviewed_at: new Date().toISOString()
+        reviewed_at: new Date().toISOString(),
+        reviewer_id: adminId
       })
       .eq('id', id)
       .select()
@@ -160,6 +209,11 @@ export async function requestChanges(id: string, notes: string) {
     if (error) {
       console.error('Error requesting changes:', error)
       return { success: false, error: error.message }
+    }
+    
+    // Log the admin action
+    if (adminId && project) {
+      await logAdminAction('requested_changes', id, project.name, adminId, 'changes_requested')
     }
     
     // Send email notification if project has contact email
