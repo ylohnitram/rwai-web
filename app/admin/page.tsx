@@ -1,3 +1,5 @@
+// app/admin/page.tsx
+
 'use client'
 
 import { useState, useEffect } from "react";
@@ -31,6 +33,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [adminEmail, setAdminEmail] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     approved: 0,
@@ -69,76 +72,32 @@ export default function AdminPage() {
     projectId: string;
     projectName: string;
     action: string;
+    adminEmail?: string;
     notes?: string;
   }>>([]);
 
   // Function to log actions to the audit log
-  const logAction = async (projectId: string, projectName: string, action: string, notes?: string) => {
+  const logAction = (projectId: string, projectName: string, action: string, notes?: string) => {
+    const logEntry = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      projectId,
+      projectName,
+      action,
+      adminEmail: adminEmail || 'Unknown', // Use the stored admin email
+      notes
+    };
+    
+    setAuditLog(prev => [logEntry, ...prev]);
+    
+    // Also save to localStorage for persistence
     try {
-      // Get current admin session
-      const supabase = getSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
-    
-      let adminEmail = 'Unknown';
-    
-      if (session?.user?.id) {
-        // Fetch the admin's profile to get the email
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', session.user.id)
-          .single();
-      
-        if (!error && profile) {
-          adminEmail = profile.email;
-        } else if (session.user.email) {
-          // Fallback to session email if profile doesn't have it
-          adminEmail = session.user.email;
-        }
-      }
-    
-      const logEntry = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        projectId,
-        projectName,
-        action,
-        adminEmail,
-        notes
-      };
-    
-      setAuditLog(prev => [logEntry, ...prev]);
-    
-      // Also save to localStorage for persistence
-      try {
-        const existingLog = JSON.parse(localStorage.getItem('adminAuditLog') || '[]');
-        localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
-      } catch (error) {
-        console.error("Error saving to localStorage:", error);
-      }
+      const existingLog = JSON.parse(localStorage.getItem('adminAuditLog') || '[]');
+      localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
     } catch (error) {
-      console.error("Error getting admin email:", error);
-      // If there's an error, still log the action, but without email
-      const logEntry = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        projectId,
-        projectName,
-        action,
-        notes
-      };
-    
-      setAuditLog(prev => [logEntry, ...prev]);
-    
-      // Save to localStorage
-      try {
-        const existingLog = JSON.parse(localStorage.getItem('adminAuditLog') || '[]');
-        localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
-      } catch (storageError) {
-        console.error("Error saving to localStorage:", storageError);
-      }
+      console.error("Error saving to localStorage:", error);
     }
-  };   
+  };
 
   // Function to validate a project
   const handleValidateProject = async (id: string) => {
@@ -378,6 +337,32 @@ export default function AdminPage() {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        // Get the admin email
+        const supabase = getSupabaseClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user?.id) {
+          // Try to get from profiles first
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (profile && profile.email) {
+            setAdminEmail(profile.email);
+            console.log("Admin email set from profile:", profile.email);
+          } else if (session.user.email) {
+            // Fallback to session email
+            setAdminEmail(session.user.email);
+            console.log("Admin email set from session:", session.user.email);
+          } else {
+            console.log("No admin email found in profile or session");
+          }
+        } else {
+          console.log("No active session found");
+        }
+        
         // Load stats
         const statsData = await fetchProjectStats();
         setStats(statsData);
@@ -390,16 +375,15 @@ export default function AdminPage() {
         try {
           const savedLog = localStorage.getItem('adminAuditLog');
           if (savedLog) {
-            setAuditLog(JSON.parse(savedLog));
+            const parsedLog = JSON.parse(savedLog);
+            setAuditLog(parsedLog);
+            console.log("Loaded audit log from localStorage:", parsedLog.length, "entries");
           }
         } catch (error) {
           console.error("Error loading audit log:", error);
         }
         
         // Set up real-time subscription for project changes
-        const supabase = getSupabaseClient();
-        
-        // Subscribe to project table changes
         const subscription = supabase
           .channel('projects-changes')
           .on('postgres_changes', {
