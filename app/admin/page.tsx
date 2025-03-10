@@ -73,24 +73,54 @@ export default function AdminPage() {
   }>>([]);
 
   // Function to log actions to the audit log
-  const logAction = (projectId: string, projectName: string, action: string, notes?: string) => {
-    const logEntry = {
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-      projectId,
-      projectName,
-      action,
-      notes
-    };
-    
-    setAuditLog(prev => [logEntry, ...prev]);
-    
-    // Also save to localStorage for persistence
+  const logAction = async (projectId: string, projectName: string, action: string, notes?: string) => {
     try {
-      const existingLog = JSON.parse(localStorage.getItem('adminAuditLog') || '[]');
-      localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
+      // Get current admin email
+      const supabase = getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const adminEmail = session?.user?.email;
+    
+      const logEntry = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        projectId,
+        projectName,
+        action,
+        adminEmail: adminEmail || 'Unknown', // Add admin email
+        notes
+      };
+    
+      setAuditLog(prev => [logEntry, ...prev]);
+    
+      // Also save to localStorage for persistence
+      try {
+        const existingLog = JSON.parse(localStorage.getItem('adminAuditLog') || '[]');
+        localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
+      } catch (error) {
+        console.error("Error saving to localStorage:", error);
+      }
     } catch (error) {
-      console.error("Error saving to localStorage:", error);
+      console.error("Error getting admin email:", error);
+      // Log action without email if there's an error
+      const logEntry = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        projectId,
+        projectName,
+        action,
+        adminEmail: 'Unknown',
+        notes
+      };
+    
+      setAuditLog(prev => [logEntry, ...prev]);
+    
+      // Save to localStorage without email
+      try {
+        const existingLog = JSON.parse(localStorage.getItem('adminAuditLog') || '[]');
+        localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
+      } catch (error) {
+        console.error("Error saving to localStorage:", error);
+      }
     }
   };
 

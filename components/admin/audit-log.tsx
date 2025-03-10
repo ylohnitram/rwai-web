@@ -1,7 +1,7 @@
-import { Clock } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Clock, User } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AuditLogEntry {
   id: string;
@@ -9,6 +9,7 @@ interface AuditLogEntry {
   projectId: string;
   projectName: string;
   action: string;
+  adminEmail?: string; // Add adminEmail field
   notes?: string;
 }
 
@@ -59,9 +60,17 @@ export function AuditLog({ logEntries }: AuditLogProps) {
                       {entry.action.charAt(0).toUpperCase() + entry.action.slice(1)}
                     </Badge>
                   </div>
-                  <div className="flex items-center text-sm text-gray-400 mb-1">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {formatDate(entry.timestamp)}
+                  <div className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-400 mb-1 gap-2">
+                    <div className="flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {formatDate(entry.timestamp)}
+                    </div>
+                    {entry.adminEmail && (
+                      <div className="flex items-center">
+                        <User className="h-3 w-3 mr-1" />
+                        {entry.adminEmail}
+                      </div>
+                    )}
                   </div>
                   {entry.notes && (
                     <div className="mt-2 p-2 bg-gray-800 rounded border border-gray-700 text-gray-300">
