@@ -49,12 +49,6 @@ export default function Navbar({ isAdmin = false }: NavbarProps) {
             >
               Blog
             </Link>
-            <Link
-              href="/edit"
-              className={`text-sm font-medium ${pathname.startsWith("/edit") ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-            >
-              Edit Project
-            </Link>
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative rounded-full border border-amber-500/30 bg-gray-900/50">
