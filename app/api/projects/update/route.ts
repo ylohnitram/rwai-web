@@ -90,6 +90,16 @@ export async function PUT(request: Request) {
     delete safeUpdates.reviewer_id;
     delete safeUpdates.reviewed_at;
     
+    // Pokud uživatel neposkytl nový audit_document_path, zachovejte stávající
+    if (!safeUpdates.audit_document_path) {
+      delete safeUpdates.audit_document_path;
+      
+      // Zachovejte i původní audit_url, pokud existuje
+      if (!safeUpdates.audit_url && existingProject.audit_url) {
+        safeUpdates.audit_url = existingProject.audit_url;
+      }
+    }
+    
     // If submitting in response to changes_requested, change status back to pending
     if (existingProject.status === 'changes_requested') {
       safeUpdates.status = 'pending';

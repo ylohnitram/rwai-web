@@ -260,8 +260,12 @@ function EditProjectContent() {
         website: values.website,
         tvl: values.tvl,
         contact_email: values.contactEmail,
-        audit_document_path: values.auditDocumentPath,
-        audit_url: auditDocumentUrl || `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
+      };
+
+      // Přidejte audit dokument pouze pokud byl nahrán nový
+      if (values.auditDocumentPath && values.auditDocumentPath !== project.audit_document_path) {
+        updatedData.audit_document_path = values.auditDocumentPath;
+        updatedData.audit_url = auditDocumentUrl || `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`;
       }
       
       // Submit to API endpoint
@@ -547,24 +551,26 @@ function EditProjectContent() {
                     )}
                   />
 
-                  {/* Audit Document Upload */}
+                  {/* Audit Document Upload - Optional */}
                   <FormField
                     control={editForm.control}
                     name="auditDocumentPath"
                     render={() => (
                       <FormItem>
-                        <FormLabel>Audit Document</FormLabel>
+                        <FormLabel>Audit Document (Optional)</FormLabel>
                         <FormControl>
                           <DocumentUpload
                             onFileUploaded={handleFileUploaded}
-                            label="Audit Report"
-                            description="Upload your project's audit or security review document (PDF recommended)"
+                            label="Audit Report (Optional)"
+                            description="You can upload a new audit document or keep your existing one"
                             bucketName="audit-documents"
                             filePath={`${Date.now()}_${editForm.getValues('name').replace(/\s+/g, '_')}_audit`}
                           />
                         </FormControl>
                         <FormDescription>
-                          Providing an audit document can speed up the review process. Accepted formats: PDF, DOC, DOCX.
+                          {project?.audit_document_path ? 
+                            "You already have an audit document. Upload a new one only if you want to replace it." :
+                            "Providing an audit document can speed up the review process but is not required."}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
