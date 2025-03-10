@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -67,7 +67,8 @@ const editFormSchema = z.object({
 type SearchFormValues = z.infer<typeof searchFormSchema>
 type EditFormValues = z.infer<typeof editFormSchema>
 
-export default function EditProjectPage() {
+// Component that uses searchParams
+function EditProjectContent() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get("id")
   const email = searchParams.get("email")
@@ -163,6 +164,12 @@ export default function EditProjectPage() {
   }
   
   // Load project directly from ID if provided
+  useState(() => {
+    if (projectId) {
+      loadProjectFromId(projectId)
+    }
+  })
+  
   const loadProjectFromId = async (id: string) => {
     setIsSearching(true)
     setError(null)
@@ -220,13 +227,6 @@ export default function EditProjectPage() {
       setIsSearching(false)
     }
   }
-  
-  // If projectId is provided in URL, load it directly
-  useState(() => {
-    if (projectId) {
-      loadProjectFromId(projectId)
-    }
-  })
   
   // Submit updated project
   async function onSubmit(values: EditFormValues) {
@@ -610,5 +610,14 @@ export default function EditProjectPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Main component with Suspense boundary
+export default function EditProjectPage() {
+  return (
+    <Suspense fallback={<div className="container py-8 px-4 md:px-6 text-center">Loading edit page...</div>}>
+      <EditProjectContent />
+    </Suspense>
   )
 }
