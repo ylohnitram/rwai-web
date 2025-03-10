@@ -104,17 +104,21 @@ export async function PUT(request: Request) {
     if (existingProject.status === 'changes_requested') {
       safeUpdates.status = 'pending';
       
-      // Store feedback in the review_notes field with a prefix instead of using a separate column
+      // Store old review notes in a comment field instead
       if (existingProject.review_notes) {
-        safeUpdates.previous_review_notes = existingProject.review_notes;
+        // If this field doesn't exist, we'll store the information in the review_notes field
+        // by prefixing it with "Previous feedback: "
+        const oldNotes = existingProject.review_notes;
+        safeUpdates.review_notes = `[Updated] Previous feedback: ${oldNotes}`;
+      } else {
+        // Clear the current review notes
+        safeUpdates.review_notes = null;
       }
-      
-      // Clear the current review notes
-      safeUpdates.review_notes = null;
     }
     
-    // Remove the previous_feedback field that doesn't exist in the schema
+    // Remove fields that don't exist in the database schema
     delete safeUpdates.previous_feedback;
+    delete safeUpdates.previous_review_notes;
     
     console.log("Updating project with data:", safeUpdates);
     
