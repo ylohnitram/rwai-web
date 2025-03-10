@@ -15,12 +15,16 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(request: Request) {
+  console.log("Project submission endpoint called");
+  
   try {
     const projectData = await request.json();
+    console.log("Project data received:", projectData);
     
     // Validate the project data
     if (!projectData.name || !projectData.type || !projectData.blockchain || 
         !projectData.description || !projectData.website || !projectData.tvl) {
+      console.log("Missing required fields in project data");
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -34,6 +38,8 @@ export async function POST(request: Request) {
       approved: false,
       featured: false,
     };
+    
+    console.log("Inserting project into database:", projectToInsert);
     
     // Use the admin client to bypass RLS
     const { data, error } = await supabaseAdmin
@@ -50,15 +56,16 @@ export async function POST(request: Request) {
       );
     }
     
+    console.log("Project inserted successfully:", data);
+    
     // Send confirmation email if contact email is provided
     if (projectData.contact_email) {
+      console.log("Preparing to send confirmation email to:", projectData.contact_email);
+      
       try {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://rwa-directory.vercel.app';
-        
-        await sendEmail(
-          projectData.contact_email,
-          `Project Submission Received: ${projectData.name}`,
-          `
+        const emailSubject = `Project Submission Received: ${projectData.name}`;
+        const emailContent = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Project Submission Received</h2>
             <p>Thank you for submitting your project <strong>${projectData.name}</strong> to TokenDirectory.</p>
@@ -82,14 +89,23 @@ export async function POST(request: Request) {
               If you didn't submit this project, please ignore this email.
             </p>
           </div>
-          `
+        `;
+        
+        console.log("Sending email with subject:", emailSubject);
+        
+        const emailResult = await sendEmail(
+          projectData.contact_email,
+          emailSubject,
+          emailContent
         );
         
-        console.log(`Submission confirmation email sent to ${projectData.contact_email}`);
+        console.log("Email sending result:", emailResult);
       } catch (emailError) {
         console.error('Error sending submission confirmation email:', emailError);
         // Continue even if email fails - don't block the submission
       }
+    } else {
+      console.log("No contact email provided, skipping confirmation email");
     }
     
     return NextResponse.json({

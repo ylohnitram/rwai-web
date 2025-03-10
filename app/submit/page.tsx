@@ -16,7 +16,6 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import DocumentUpload from "@/components/document-upload"
-import { createProject } from "@/lib/services/project-service"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -96,20 +95,32 @@ export default function SubmitPage() {
         description: values.description,
         website: values.website,
         tvl: values.tvl,
-        // Set default values for database
-        status: 'pending' as const,
-        approved: false,
-        featured: false,
         // Store contact email and audit document path
         contact_email: values.contactEmail,
         audit_document_path: values.auditDocumentPath,
-        // Add explicit auditUrl field
+        // Add explicit audit_url field
         audit_url: auditDocumentUrl || `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
       }
-    
-      // Submit to database
-      await createProject(projectData)
-    
+      
+      console.log("Submitting project data:", projectData);
+      
+      // Submit to API endpoint
+      const response = await fetch('/api/projects/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(projectData),
+      })
+      
+      const result = await response.json()
+      
+      console.log("Submission result:", result);
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit project')
+      }
+      
       setIsSubmitted(true)
     } catch (err) {
       console.error("Error submitting project:", err)
