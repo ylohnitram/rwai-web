@@ -165,7 +165,8 @@ export async function requestChanges(id: string, notes: string) {
     // Send email notification if project has contact email
     if (project && project.contact_email) {
       try {
-        await sendRequestChangesEmail(project.contact_email, project.name, notes);
+        // Pass the project ID to the email function so it can be included in the edit URL
+        await sendRequestChangesEmail(project.contact_email, project.name, notes, id);
       } catch (emailError) {
         console.error('Error sending changes request email:', emailError);
         // Continue even if email fails

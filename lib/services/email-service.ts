@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Default sender email address
-const DEFAULT_FROM = process.env.EMAIL_FROM || 'do-not-reply@rwa-investors.com';
+const DEFAULT_FROM = process.env.EMAIL_FROM || 'notifications@rwa-directory.com';
 
 /**
  * Send notification email
@@ -91,8 +91,15 @@ export async function sendProjectRejectionEmail(
 export async function sendRequestChangesEmail(
   email: string,
   projectName: string,
-  feedback: string
+  feedback: string,
+  projectId?: string
 ): Promise<boolean> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://rwa-directory.vercel.app';
+  // Create edit URL with project ID and email parameters if ID is provided
+  const editUrl = projectId 
+    ? `${siteUrl}/edit?id=${projectId}&email=${encodeURIComponent(email)}`
+    : `${siteUrl}/edit?email=${encodeURIComponent(email)}`;
+
   const subject = `Action Required: Changes needed for "${projectName}"`;
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -102,11 +109,11 @@ export async function sendRequestChangesEmail(
         <h3 style="margin-top: 0; color: #333;">Requested Changes:</h3>
         <p style="white-space: pre-line;">${feedback}</p>
       </div>
-      <p>Please update your submission with these changes and resubmit.</p>
+      <p>Please update your submission with these changes and resubmit using the link below.</p>
       <div style="margin: 30px 0;">
-        <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://rwa-directory.vercel.app'}/submit" 
+        <a href="${editUrl}" 
            style="background-color: #F59E0B; color: #0F172A; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          Update Submission
+          Update Your Project
         </a>
       </div>
       <p>Thank you for your interest in TokenDirectory.</p>
