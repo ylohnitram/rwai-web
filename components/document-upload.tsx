@@ -1,4 +1,6 @@
-import { useState, useRef } from "react"
+// components/document-upload.tsx
+
+import { useState, useRef, useEffect } from "react"
 import { UploadCloud, File, AlertCircle, CheckCircle, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { uploadFile } from "@/lib/services/storage-service"
@@ -13,7 +15,7 @@ interface DocumentUploadProps {
   description?: string
   bucketName?: string
   filePath?: string
-  initialFilePath?: string // Add this prop to handle existing files
+  initialFilePath?: string
 }
 
 export default function DocumentUpload({
@@ -25,16 +27,24 @@ export default function DocumentUpload({
   description = "Upload your project's audit report (PDF, DOC, or DOCX)",
   bucketName = "audit-documents",
   filePath = "",
-  initialFilePath = "", // Default to empty string instead of undefined
+  initialFilePath = "",
 }: DocumentUploadProps) {
   const [file, setFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isSuccess, setIsSuccess] = useState(!!initialFilePath) // Set to true if initial file exists
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [hasExistingFile, setHasExistingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const maxSizeBytes = maxSizeMB * 1024 * 1024 // Convert MB to bytes
+
+  // Check for initial file on component mount
+  useEffect(() => {
+    if (initialFilePath && initialFilePath.length > 0) {
+      setHasExistingFile(true)
+    }
+  }, [initialFilePath])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -58,7 +68,6 @@ export default function DocumentUpload({
         if (type === '.pdf') return 'application/pdf'
         if (type === '.doc') return 'application/msword'
         if (type === '.docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        // Add more mappings as needed
         return type
       }
       return type
@@ -74,6 +83,7 @@ export default function DocumentUpload({
     }
 
     setFile(selectedFile)
+    setHasExistingFile(false) // Clear existing file status when a new file is selected
   }
 
   const handleUpload = async () => {
@@ -112,6 +122,7 @@ export default function DocumentUpload({
       onFileUploaded(uniqueFilePath, fileUrl)
       
       setIsSuccess(true)
+      setHasExistingFile(false) // No longer using existing file
       setTimeout(() => {
         setUploadProgress(0)
       }, 1000)
@@ -132,13 +143,11 @@ export default function DocumentUpload({
     setUploadProgress(0)
     setError(null)
     setIsSuccess(false)
+    setHasExistingFile(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }
-
-  // If there's already a file uploaded (initialFilePath is set)
-  const hasExistingFile = !!initialFilePath && !file && isSuccess
 
   return (
     <div className="w-full">
@@ -147,7 +156,7 @@ export default function DocumentUpload({
         <p className="text-xs text-gray-400">{description}</p>
       </div>
 
-      {!file && !hasExistingFile ? (
+      {!file && !hasExistingFile && !isSuccess ? (
         <div 
           className={`border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center cursor-pointer ${
             error ? "border-red-500 bg-red-500/10" : "border-gray-700 hover:border-amber-500/50 hover:bg-gray-800"
@@ -174,9 +183,21 @@ export default function DocumentUpload({
             <div className="flex items-center">
               <File className="h-8 w-8 mr-2 text-blue-400" />
               <div>
-                <p className="text-sm font-medium">{file ? file.name : initialFilePath.split('/').pop()}</p>
-                {file && <p className="text-xs text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>}
-                {hasExistingFile && <p className="text-xs text-gray-400">Existing document</p>}
+                {file && (
+                  <>
+                    <p className="text-sm font-medium">{file.name}</p>
+                    <p className="text-xs text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </>
+                )}
+                {hasExistingFile && !file && (
+                  <>
+                    <p className="text-sm font-medium">Existing document</p>
+                    <p className="text-xs text-gray-400">{initialFilePath.split('/').pop()}</p>
+                  </>
+                )}
+                {isSuccess && !file && !hasExistingFile && (
+                  <p className="text-sm font-medium">Document uploaded successfully</p>
+                )}
               </div>
             </div>
             
@@ -201,16 +222,29 @@ export default function DocumentUpload({
           {isSuccess ? (
             <div className="flex items-center text-green-500 text-sm mt-2">
               <CheckCircle className="h-4 w-4 mr-1" />
-              {hasExistingFile ? "Existing document will be kept" : "Document uploaded successfully"}
+              Document uploaded successfully
             </div>
-          ) : (
+          ) : hasExistingFile ? (
+            <div className="flex items-center text-gray-300 text-sm mt-2">
+              Using existing document - select a new file above to replace it
+            </div>
+          ) : file && !isUploading ? (
             <Button
               onClick={handleUpload}
-              disabled={isUploading}
               className="mt-2 w-full"
             >
-              {isUploading ? "Uploading..." : "Upload Document"}
+              Upload Document
             </Button>
+          ) : null}
+          
+          {isUploading && (
+            <div className="flex items-center text-gray-300 text-sm mt-2">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Uploading...
+            </div>
           )}
         </div>
       )}

@@ -90,11 +90,11 @@ export async function PUT(request: Request) {
     delete safeUpdates.reviewer_id;
     delete safeUpdates.reviewed_at;
     
-    // Pokud uživatel neposkytl nový audit_document_path, zachovejte stávající
+    // Preserve existing audit document if not provided
     if (!safeUpdates.audit_document_path) {
       delete safeUpdates.audit_document_path;
       
-      // Zachovejte i původní audit_url, pokud existuje
+      // Keep original audit_url if it exists
       if (!safeUpdates.audit_url && existingProject.audit_url) {
         safeUpdates.audit_url = existingProject.audit_url;
       }
@@ -103,10 +103,18 @@ export async function PUT(request: Request) {
     // If submitting in response to changes_requested, change status back to pending
     if (existingProject.status === 'changes_requested') {
       safeUpdates.status = 'pending';
-      // Keep track of previous feedback
-      safeUpdates.previous_feedback = existingProject.review_notes;
+      
+      // Store feedback in the review_notes field with a prefix instead of using a separate column
+      if (existingProject.review_notes) {
+        safeUpdates.previous_review_notes = existingProject.review_notes;
+      }
+      
+      // Clear the current review notes
       safeUpdates.review_notes = null;
     }
+    
+    // Remove the previous_feedback field that doesn't exist in the schema
+    delete safeUpdates.previous_feedback;
     
     console.log("Updating project with data:", safeUpdates);
     
