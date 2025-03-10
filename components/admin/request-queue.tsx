@@ -8,7 +8,13 @@ import { Badge } from "@/components/ui/badge"
 import { Project } from "@/types/project"
 import { getSupabaseClient } from "@/lib/supabase"
 
-export function RequestQueue({ onViewProject }: { onViewProject: (project: Project) => void }) {
+export function RequestQueue({ 
+  onViewProject,
+  refreshTrigger = 0
+}: { 
+  onViewProject: (project: Project) => void,
+  refreshTrigger?: number
+}) {
   const [pendingProjects, setPendingProjects] = useState<Project[]>([])
   const [changesProjects, setChangesProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -33,7 +39,7 @@ export function RequestQueue({ onViewProject }: { onViewProject: (project: Proje
     return () => {
       supabase.removeChannel(subscription)
     }
-  }, [])
+  }, [refreshTrigger])
   
   const fetchProjects = async () => {
     setIsLoading(true)

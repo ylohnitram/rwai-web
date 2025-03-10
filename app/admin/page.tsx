@@ -1,4 +1,3 @@
-// app/admin/page.tsx
 'use client'
 
 import { useState, useEffect } from "react";
@@ -21,7 +20,6 @@ import {
 // Import our components
 import { StatsCards } from "@/components/admin/stats-cards";
 import { DistributionCharts } from "@/components/admin/distribution-charts";
-import { PendingProjectsTable } from "@/components/admin/pending-projects-table";
 import { AuditLog } from "@/components/admin/audit-log";
 import { ProjectDetailsDrawer } from "@/components/admin/project-details-drawer";
 import { RequestChangesDialog } from "@/components/admin/request-changes-dialog";
@@ -31,7 +29,6 @@ import { ActivityFeed } from "@/components/admin/activity-feed";
 
 export default function AdminPage() {
   const { toast } = useToast();
-  const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -62,6 +59,9 @@ export default function AdminPage() {
   const [currentValidation, setCurrentValidation] = useState<ProjectValidation | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   
+  // For refreshing queue after actions
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  
   // For audit log
   const [auditLog, setAuditLog] = useState<Array<{
     id: string;
@@ -71,137 +71,6 @@ export default function AdminPage() {
     action: string;
     notes?: string;
   }>>([]);
-
-  // Fetch pending projects from Supabase
-  const fetchPendingProjects = async () => {
-    try {
-      const supabase = getSupabaseClient();
-      
-      // Get pending projects by status column instead of approved column
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("status", "pending");
-        
-      if (error) {
-        console.error("Error fetching pending projects:", error);
-        return [];
-      }
-      
-      // For each project, try to fetch its validation results using the server action
-      const projectValidations: Record<string, ProjectValidation | null> = {};
-      
-      await Promise.all(
-        data.map(async (project) => {
-          try {
-            const { success, data: validation, error } = await fetchValidationResults(project.id);
-            
-            if (success && validation) {
-              projectValidations[project.id] = validation;
-            } else if (error) {
-              console.error(`Error fetching validation for project ${project.id}:`, error);
-            }
-          } catch (error) {
-            console.error(`Error fetching validation for project ${project.id}:`, error);
-          }
-        })
-      );
-      
-      // Update validations state
-      setValidations(projectValidations);
-      
-      return data as Project[];
-    } catch (error) {
-      console.error("Error fetching pending projects:", error);
-      return [];
-    }
-  };
-
-  // Fetch project stats
-  const fetchProjectStats = async () => {
-    try {
-      const supabase = getSupabaseClient();
-      
-      // Get total count
-      const { count: total } = await supabase
-        .from("projects")
-        .select("*", { count: "exact", head: true });
-
-      // Get approved count (using status column)
-      const { count: approved } = await supabase
-        .from("projects")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "approved");
-
-      // Get pending count (using status column)
-      const { count: pending } = await supabase
-        .from("projects")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending");
-
-      // Get average ROI for approved projects
-      const { data: roiData } = await supabase
-        .from("projects")
-        .select("roi")
-        .eq("status", "approved");
-
-      const averageRoi = roiData && roiData.length > 0
-        ? parseFloat((roiData.reduce((sum, project) => sum + (project.roi || 0), 0) / roiData.length).toFixed(1))
-        : 0;
-      
-      return { 
-        total: total || 0, 
-        approved: approved || 0, 
-        pending: pending || 0, 
-        averageRoi 
-      };
-    } catch (error) {
-      console.error("Error fetching project stats:", error);
-      return { total: 0, approved: 0, pending: 0, averageRoi: 0 };
-    }
-  };
-
-  // Fetch project distributions
-  const fetchProjectDistribution = async () => {
-    try {
-      const supabase = getSupabaseClient();
-      
-      // Fetch all approved projects
-      const { data } = await supabase
-        .from("projects")
-        .select("blockchain, type")
-        .eq("status", "approved");
-
-      if (!data) {
-        return { byBlockchain: [], byAssetType: [] };
-      }
-
-      // Count by blockchain
-      const blockchainCounts: Record<string, number> = {};
-      
-      // Count by asset type
-      const assetTypeCounts: Record<string, number> = {};
-      
-      data.forEach(project => {
-        if (project.blockchain) {
-          blockchainCounts[project.blockchain] = (blockchainCounts[project.blockchain] || 0) + 1;
-        }
-        
-        if (project.type) {
-          assetTypeCounts[project.type] = (assetTypeCounts[project.type] || 0) + 1;
-        }
-      });
-
-      // Convert to array format for charts
-      const byBlockchain = Object.entries(blockchainCounts).map(([name, value]) => ({ name, value }));
-      const byAssetType = Object.entries(assetTypeCounts).map(([name, value]) => ({ name, value }));
-
-      return { byBlockchain, byAssetType };
-    } catch (error) {
-      console.error("Error fetching project distribution:", error);
-      return { byBlockchain: [], byAssetType: [] };
-    }
-  };
 
   // Function to log actions to the audit log
   const logAction = (projectId: string, projectName: string, action: string, notes?: string) => {
@@ -230,10 +99,18 @@ export default function AdminPage() {
     setIsValidating(true);
     try {
       // Find the project
-      const project = pendingProjects.find(p => p.id === id);
-      if (!project) {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("id", id)
+        .single();
+        
+      if (error || !data) {
         throw new Error('Project not found');
       }
+      
+      const project = data;
       
       // Run validation
       const validationResult = await validateProject(project);
@@ -363,16 +240,98 @@ export default function AdminPage() {
     setRequestNotes("");
     setRequestChangesOpen(true);
   };
+  
+  // Fetch project stats
+  const fetchProjectStats = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Get total count
+      const { count: total } = await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true });
+
+      // Get approved count (using status column)
+      const { count: approved } = await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "approved");
+
+      // Get pending count (using status column)
+      const { count: pending } = await supabase
+        .from("projects")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+
+      // Get average ROI for approved projects
+      const { data: roiData } = await supabase
+        .from("projects")
+        .select("roi")
+        .eq("status", "approved");
+
+      const averageRoi = roiData && roiData.length > 0
+        ? parseFloat((roiData.reduce((sum, project) => sum + (project.roi || 0), 0) / roiData.length).toFixed(1))
+        : 0;
+      
+      return { 
+        total: total || 0, 
+        approved: approved || 0, 
+        pending: pending || 0, 
+        averageRoi 
+      };
+    } catch (error) {
+      console.error("Error fetching project stats:", error);
+      return { total: 0, approved: 0, pending: 0, averageRoi: 0 };
+    }
+  };
+
+  // Fetch project distributions
+  const fetchProjectDistribution = async () => {
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Fetch all approved projects
+      const { data } = await supabase
+        .from("projects")
+        .select("blockchain, type")
+        .eq("status", "approved");
+
+      if (!data) {
+        return { byBlockchain: [], byAssetType: [] };
+      }
+
+      // Count by blockchain
+      const blockchainCounts: Record<string, number> = {};
+      
+      // Count by asset type
+      const assetTypeCounts: Record<string, number> = {};
+      
+      data.forEach(project => {
+        if (project.blockchain) {
+          blockchainCounts[project.blockchain] = (blockchainCounts[project.blockchain] || 0) + 1;
+        }
+        
+        if (project.type) {
+          assetTypeCounts[project.type] = (assetTypeCounts[project.type] || 0) + 1;
+        }
+      });
+
+      // Convert to array format for charts
+      const byBlockchain = Object.entries(blockchainCounts).map(([name, value]) => ({ name, value }));
+      const byAssetType = Object.entries(assetTypeCounts).map(([name, value]) => ({ name, value }));
+
+      return { byBlockchain, byAssetType };
+    } catch (error) {
+      console.error("Error fetching project distribution:", error);
+      return { byBlockchain: [], byAssetType: [] };
+    }
+  };
 
   // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Load pending projects
-        const pendingData = await fetchPendingProjects();
-        setPendingProjects(pendingData);
-
         // Load stats
         const statsData = await fetchProjectStats();
         setStats(statsData);
@@ -401,23 +360,19 @@ export default function AdminPage() {
             event: 'INSERT',
             schema: 'public',
             table: 'projects'
-          }, (payload) => {
-            // Handle new project added
-            fetchPendingProjects().then(data => setPendingProjects(data));
+          }, () => {
             refreshStats();
+            setRefreshCounter(prev => prev + 1);
           })
           .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
             table: 'projects'
           }, (payload) => {
-            // Handle project updates
-            const updatedProject = payload.new as Project;
-            
-            // If status changed, refresh projects list and stats
-            if (payload.old.status !== updatedProject.status) {
-              fetchPendingProjects().then(data => setPendingProjects(data));
+            // If status changed, refresh stats
+            if (payload.old.status !== payload.new.status) {
               refreshStats();
+              setRefreshCounter(prev => prev + 1);
             }
           })
           .subscribe();
@@ -443,9 +398,19 @@ export default function AdminPage() {
   const handleApproveProject = async (id: string) => {
     setIsProcessing(true);
     try {
-      // Find the project name before we filter it out
-      const project = pendingProjects.find(p => p.id === id);
-      const projectName = project?.name || "Unknown project";
+      // Find the project
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("id", id)
+        .single();
+      
+      if (error || !data) {
+        throw new Error("Project not found");
+      }
+      
+      const projectName = data.name;
       
       const result = await approveProject(id);
       
@@ -453,8 +418,13 @@ export default function AdminPage() {
         throw new Error(result.error || 'Failed to approve project');
       }
       
-      // Update the UI immediately
-      setPendingProjects((prev) => prev.filter((project) => project.id !== id));
+      // If drawer is open, close it
+      if (isDetailsOpen) {
+        setIsDetailsOpen(false);
+      }
+      
+      // Refresh the queue list
+      setRefreshCounter(prev => prev + 1);
       
       // Refresh stats from the server
       await refreshStats();
@@ -482,9 +452,19 @@ export default function AdminPage() {
   const handleRejectProject = async (id: string) => {
     setIsProcessing(true);
     try {
-      // Find the project name before we filter it out
-      const project = pendingProjects.find(p => p.id === id);
-      const projectName = project?.name || "Unknown project";
+      // Find the project
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("id", id)
+        .single();
+      
+      if (error || !data) {
+        throw new Error("Project not found");
+      }
+      
+      const projectName = data.name;
       
       const result = await rejectProject(id);
       
@@ -492,8 +472,13 @@ export default function AdminPage() {
         throw new Error(result.error || 'Failed to reject project');
       }
       
-      // Update the UI immediately
-      setPendingProjects((prev) => prev.filter((project) => project.id !== id));
+      // If drawer is open, close it
+      if (isDetailsOpen) {
+        setIsDetailsOpen(false);
+      }
+      
+      // Refresh the queue list
+      setRefreshCounter(prev => prev + 1);
       
       // Refresh stats from the server
       await refreshStats();
@@ -530,9 +515,19 @@ export default function AdminPage() {
 
     setIsProcessing(true);
     try {
-      // Find the project name before we filter it out
-      const project = pendingProjects.find(p => p.id === selectedProjectId);
-      const projectName = project?.name || "Unknown project";
+      // Find the project
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("id", selectedProjectId)
+        .single();
+      
+      if (error || !data) {
+        throw new Error("Project not found");
+      }
+      
+      const projectName = data.name;
       
       const result = await requestChanges(selectedProjectId, requestNotes);
       
@@ -545,8 +540,13 @@ export default function AdminPage() {
       setSelectedProjectId(null);
       setRequestNotes("");
       
-      // Update the UI immediately
-      setPendingProjects((prev) => prev.filter((project) => project.id !== selectedProjectId));
+      // If drawer is open, close it
+      if (isDetailsOpen) {
+        setIsDetailsOpen(false);
+      }
+      
+      // Refresh the queue list
+      setRefreshCounter(prev => prev + 1);
       
       // Refresh stats from the server
       await refreshStats();
@@ -598,7 +598,7 @@ export default function AdminPage() {
         title: "Signed out",
         description: "You have been successfully signed out.",
       });
-
+      
       // Force a full page reload to ensure all state is cleared
       setTimeout(() => {
         window.location.href = '/login?signedout=true';
@@ -656,33 +656,25 @@ export default function AdminPage() {
 
       {/* Request Queue */}
       <div className="mb-8">
-        <RequestQueue onViewProject={openProjectDetails} />
+        <RequestQueue 
+          onViewProject={openProjectDetails}
+          refreshTrigger={refreshCounter}
+        />
       </div>
 
-      {/* Tabs for Projects, Activity, and Audit Log */}
-      <Tabs defaultValue="projects" className="mb-8">
+      {/* Tabs for Charts, Activity, and Audit Log */}
+      <Tabs defaultValue="statistics" className="mb-8">
         <TabsList className="bg-gray-900 border border-gray-800">
-          <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="statistics">Statistics</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="projects">
+        <TabsContent value="statistics">
           {/* Charts */}
           <DistributionCharts 
             byBlockchain={distribution.byBlockchain}
             byAssetType={distribution.byAssetType}
-          />
-
-          {/* Pending Projects Table */}
-          <PendingProjectsTable 
-            projects={pendingProjects}
-            validations={validations}
-            isProcessing={isProcessing}
-            onViewDetails={openProjectDetails}
-            onApprove={handleApproveProject}
-            onRequestChanges={openRequestChangesDialog}
-            onReject={handleRejectProject}
           />
         </TabsContent>
         
@@ -724,4 +716,4 @@ export default function AdminPage() {
       />
     </div>
   );
-} 
+}
