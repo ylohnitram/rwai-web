@@ -26,6 +26,8 @@ interface Project {
   status: string;
   created_at: string;
   updated_at: string;
+  approved: boolean;
+  featured: boolean;
   // Add other fields as needed
 }
 
@@ -36,7 +38,7 @@ async function removeDuplicateProjects() {
     // Get all projects
     const { data: projects, error: fetchError } = await supabase
       .from('projects')
-      .select('id, name, status, created_at, updated_at');
+      .select('id, name, status, approved, featured, created_at, updated_at');
     
     if (fetchError) {
       throw new Error(`Error fetching projects: ${fetchError.message}`);
@@ -49,14 +51,14 @@ async function removeDuplicateProjects() {
     
     console.log(`Found ${projects.length} total projects.`);
     
-    // Group projects by name
+    // Group projects by normalized name (case-insensitive, trimmed)
     const projectsByName: Record<string, Project[]> = {};
     projects.forEach((project: Project) => {
-      const name = project.name.trim().toLowerCase();
-      if (!projectsByName[name]) {
-        projectsByName[name] = [];
+      const normalizedName = project.name.trim().toLowerCase();
+      if (!projectsByName[normalizedName]) {
+        projectsByName[normalizedName] = [];
       }
-      projectsByName[name].push(project);
+      projectsByName[normalizedName].push(project);
     });
     
     // Find duplicates
@@ -71,68 +73,89 @@ async function removeDuplicateProjects() {
     
     // Process each set of duplicates
     let totalDuplicatesRemoved = 0;
+    let totalDuplicatesRenamed = 0;
+    
     for (const name of duplicateNames) {
       const duplicates = projectsByName[name];
       console.log(`\nProcessing duplicates for "${duplicates[0].name}" (${duplicates.length} entries found):`);
       
       // List all duplicates
       duplicates.forEach((project, i) => {
-        console.log(`  ${i+1}. ID: ${project.id}, Status: ${project.status}, Created: ${new Date(project.created_at).toLocaleString()}`);
+        console.log(`  ${i+1}. ID: ${project.id}, Status: ${project.status}, Approved: ${project.approved}, Created: ${new Date(project.created_at).toLocaleString()}`);
       });
       
-      // Keep the "best" one:
-      // 1. Keep approved projects if available
-      // 2. Otherwise keep the oldest project
-      let keepIndex = 0;
+      // Choose the best candidate to keep:
+      // Priority: 1. Approved and featured, 2. Approved, 3. Featured, 4. Oldest
       
-      // Find approved projects
-      const approvedProjects = duplicates.filter((p, i) => {
-        if (p.status === 'approved') {
-          return true;
-        }
-        return false;
+      // First, sort by priority criteria
+      const sortedDuplicates = [...duplicates].sort((a, b) => {
+        // Priority 1: Approved AND Featured
+        if (a.approved && a.featured && !(b.approved && b.featured)) return -1;
+        if (b.approved && b.featured && !(a.approved && a.featured)) return 1;
+        
+        // Priority 2: Approved
+        if (a.approved && !b.approved) return -1;
+        if (b.approved && !a.approved) return 1;
+        
+        // Priority 3: Featured
+        if (a.featured && !b.featured) return -1;
+        if (b.featured && !a.featured) return 1;
+        
+        // Priority 4: Status 'approved'
+        if (a.status === 'approved' && b.status !== 'approved') return -1;
+        if (b.status === 'approved' && a.status !== 'approved') return 1;
+        
+        // Priority 5: Oldest (created first)
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
       
-      if (approvedProjects.length > 0) {
-        // If there are multiple approved projects, keep the oldest one
-        const oldestApproved = approvedProjects.reduce((prev, current) => 
-          new Date(prev.created_at) < new Date(current.created_at) ? prev : current
-        );
-        keepIndex = duplicates.findIndex(p => p.id === oldestApproved.id);
-      } else {
-        // Keep the oldest project
-        const oldest = duplicates.reduce((prev, current) => 
-          new Date(prev.created_at) < new Date(current.created_at) ? prev : current
-        );
-        keepIndex = duplicates.findIndex(p => p.id === oldest.id);
-      }
+      // The best candidate is now at index 0
+      const keepProject = sortedDuplicates[0];
+      const projectsToProcess = sortedDuplicates.slice(1); // All except the first one
       
-      // Mark which one we're keeping
-      console.log(`  Keeping #${keepIndex+1} (ID: ${duplicates[keepIndex].id})`);
+      console.log(`  Keeping project ID: ${keepProject.id}, Name: "${keepProject.name}", Status: ${keepProject.status}`);
       
-      // Delete all others
-      const projectsToDelete = duplicates.filter((_, i) => i !== keepIndex);
-      const idsToDelete = projectsToDelete.map(p => p.id);
-      
-      if (idsToDelete.length > 0) {
-        console.log(`  Deleting ${idsToDelete.length} duplicate(s)...`);
-        
-        const { error: deleteError } = await supabase
-          .from('projects')
-          .delete()
-          .in('id', idsToDelete);
-        
-        if (deleteError) {
-          console.error(`  Error deleting duplicates: ${deleteError.message}`);
-          console.log(`  Skipping to next set of duplicates.`);
-        } else {
-          console.log(`  Successfully deleted ${idsToDelete.length} duplicates.`);
-          totalDuplicatesRemoved += idsToDelete.length;
+      // Process each duplicate except the one we're keeping
+      for (const project of projectsToProcess) {
+        try {
+          // Attempt to delete - this might fail due to foreign key constraints
+          const { error: deleteError } = await supabase
+            .from('projects')
+            .delete()
+            .eq('id', project.id);
+          
+          if (deleteError) {
+            console.log(`  Could not delete project ID ${project.id}: ${deleteError.message}`);
+            console.log(`  Attempting to rename it instead...`);
+            
+            // Try renaming with a suffix to make it unique
+            const newName = `${project.name} (Duplicate ${Date.now()})`;
+            const { error: updateError } = await supabase
+              .from('projects')
+              .update({ name: newName })
+              .eq('id', project.id);
+            
+            if (updateError) {
+              console.error(`  Failed to rename project: ${updateError.message}`);
+            } else {
+              console.log(`  Successfully renamed project ID ${project.id} to "${newName}"`);
+              totalDuplicatesRenamed++;
+            }
+          } else {
+            console.log(`  Successfully deleted project ID ${project.id}`);
+            totalDuplicatesRemoved++;
+          }
+        } catch (err) {
+          console.error(`  Error processing project ID ${project.id}:`, err);
         }
       }
     }
     
-    console.log(`\nCleanup complete. Removed ${totalDuplicatesRemoved} duplicate projects.`);
+    console.log(`\nCleanup complete!`);
+    console.log(`Results:`);
+    console.log(`- Removed: ${totalDuplicatesRemoved} duplicate projects`);
+    console.log(`- Renamed: ${totalDuplicatesRenamed} duplicate projects`);
+    console.log(`- Total processed: ${totalDuplicatesRemoved + totalDuplicatesRenamed} projects`);
     
   } catch (error) {
     console.error('Error cleaning up duplicate projects:', error);
