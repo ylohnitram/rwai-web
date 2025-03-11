@@ -237,7 +237,7 @@ export async function requestChanges(id: string, notes: string) {
   }
 }
 
-// Add a new action to save validation results
+// Add a new action to save project validation
 export async function saveProjectValidation(projectId: string, validation: ProjectValidation) {
   try {
     console.log(`Saving validation for project ${projectId} with server action`)
@@ -270,6 +270,71 @@ export async function saveProjectValidation(projectId: string, validation: Proje
   }
 }
 
+// Add this new action to save manual validation overrides
+export async function saveManualValidationOverride(
+  projectId: string, 
+  validation: ProjectValidation
+) {
+  try {
+    console.log(`Saving manual validation override for project ${projectId}`)
+    
+    // Use the admin client to bypass RLS
+    const { error } = await supabaseAdmin
+      .from('validation_results')
+      .upsert({
+        project_id: projectId,
+        scam_check_passed: validation.scamCheck.passed,
+        scam_check_details: validation.scamCheck.details,
+        sanctions_check_passed: validation.sanctionsCheck.passed,
+        sanctions_check_details: validation.sanctionsCheck.details,
+        audit_check_passed: validation.auditCheck.passed,
+        audit_check_details: validation.auditCheck.details,
+        risk_level: validation.riskLevel,
+        overall_passed: validation.overallPassed,
+        validated_at: new Date().toISOString(),
+        // Add fields for manual review
+        manually_reviewed: validation.manuallyReviewed,
+        reviewer_id: validation.reviewedBy,
+        reviewed_at: validation.reviewedAt,
+        scam_check_override: validation.scamCheck.manualOverride || false,
+        scam_check_notes: validation.scamCheck.manualNotes,
+        sanctions_check_override: validation.sanctionsCheck.manualOverride || false,
+        sanctions_check_notes: validation.sanctionsCheck.manualNotes,
+        audit_check_override: validation.auditCheck.manualOverride || false,
+        audit_check_notes: validation.auditCheck.manualNotes
+      })
+    
+    if (error) {
+      console.error('Error saving validation override:', error)
+      return { success: false, error: error.message }
+    }
+    
+    // Log the admin action
+    try {
+      await supabaseAdmin
+        .from('admin_activities')
+        .insert({
+          action: 'manual_validation',
+          project_id: projectId,
+          project_name: `Project ID: ${projectId}`, // We don't have the name here, could fetch it
+          admin_id: validation.reviewedBy,
+          status: validation.overallPassed ? 'approved' : 'manual_review'
+        })
+    } catch (logError) {
+      console.error('Error logging admin action:', logError)
+      // Continue even if logging fails
+    }
+    
+    // Revalidate the admin path to refresh the UI
+    revalidatePath('/admin')
+    
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error in saveManualValidationOverride:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 // Action to fetch validation results with service role
 export async function fetchValidationResults(projectId: string) {
   try {
@@ -294,22 +359,31 @@ export async function fetchValidationResults(projectId: string) {
       return { success: true, data: null }
     }
     
-    // Transform to expected validation format
+    // Transform to expected validation format with manual review info
     const validation = {
       scamCheck: {
         passed: data.scam_check_passed,
-        details: data.scam_check_details
+        details: data.scam_check_details,
+        manualOverride: data.scam_check_override || false,
+        manualNotes: data.scam_check_notes
       },
       sanctionsCheck: {
         passed: data.sanctions_check_passed,
-        details: data.sanctions_check_details
+        details: data.sanctions_check_details,
+        manualOverride: data.sanctions_check_override || false,
+        manualNotes: data.sanctions_check_notes
       },
       auditCheck: {
         passed: data.audit_check_passed,
-        details: data.audit_check_details
+        details: data.audit_check_details,
+        manualOverride: data.audit_check_override || false,
+        manualNotes: data.audit_check_notes
       },
       riskLevel: data.risk_level,
-      overallPassed: data.overall_passed
+      overallPassed: data.overall_passed,
+      manuallyReviewed: data.manually_reviewed || false,
+      reviewedBy: data.reviewer_id,
+      reviewedAt: data.reviewed_at
     }
     
     return { success: true, data: validation }

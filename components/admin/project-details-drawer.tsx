@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Project } from "@/types/project"
 import { ProjectValidation } from "@/lib/services/validation-service"
 import { ProjectValidationDetails } from "./project-validation-details"
+import { ManualValidationReview } from "./manual-validation-review" // Add this import
 
 interface ProjectDetailsDrawerProps {
   project: Project | null;
@@ -14,7 +15,7 @@ interface ProjectDetailsDrawerProps {
   onOpenChange: (open: boolean) => void;
   documentUrl: string | null;
   whitepaperUrl: string | null;
-  whitepaperDocumentUrl: string | null; // Add whitepaper document URL
+  whitepaperDocumentUrl: string | null;
   auditUrl: string | null;
   validation: ProjectValidation | null;
   isValidating: boolean;
@@ -23,6 +24,8 @@ interface ProjectDetailsDrawerProps {
   onApprove: (id: string) => Promise<void>;
   onRequestChanges: (id: string) => void;
   onReject: (id: string) => Promise<void>;
+  onValidationOverride: (validation: ProjectValidation) => Promise<void>; // Add this
+  adminId?: string; // Add this
 }
 
 export function ProjectDetailsDrawer({ 
@@ -31,7 +34,7 @@ export function ProjectDetailsDrawer({
   onOpenChange, 
   documentUrl,
   whitepaperUrl,
-  whitepaperDocumentUrl, // Add whitepaper document URL
+  whitepaperDocumentUrl,
   auditUrl,
   validation,
   isValidating,
@@ -39,15 +42,18 @@ export function ProjectDetailsDrawer({
   onValidate,
   onApprove,
   onRequestChanges,
-  onReject
+  onReject,
+  onValidationOverride, // Add this
+  adminId // Add this
 }: ProjectDetailsDrawerProps) {
   // Function to check if approval should be disabled
   const shouldDisableApproval = () => {
     // Disable if processing or validating
     if (isProcessing || isValidating) return true;
     
-    // If validation exists and it fails critical checks, disable approval
-    if (validation && !validation.overallPassed) return true;
+    // If validation exists and it fails critical checks AND hasn't been manually overridden,
+    // disable approval
+    if (validation && !validation.overallPassed && !validation.manuallyReviewed) return true;
     
     return false;
   };
@@ -69,6 +75,16 @@ export function ProjectDetailsDrawer({
                 auditUrl={auditUrl}
                 isLoading={isValidating} 
               />
+              
+              {/* Manual Validation Review */}
+              {validation && (
+                <ManualValidationReview
+                  validation={validation}
+                  projectId={project.id}
+                  onValidationOverride={onValidationOverride}
+                  adminId={adminId}
+                />
+              )}
               
               {/* Project basic info */}
               <Card className="bg-gray-800 border-gray-700">
