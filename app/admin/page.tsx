@@ -6,7 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 
 import { Button } from "@/components/ui/button";
 import { Project } from "@/types/project";
-import { approveProject, rejectProject, requestChanges, saveProjectValidation, fetchValidationResults } from "../actions";
+import { 
+  approveProject,
+  rejectProject, 
+  requestChanges, 
+  saveProjectValidation, 
+  fetchValidationResults,
+  saveManualValidationOverride // Add this import
+} from "../actions";
 import { Toaster } from "@/components/ui/toaster";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -75,6 +82,9 @@ export default function AdminPage() {
     notes?: string;
   }>>([]);
 
+  // Add state for admin ID
+  const [adminId, setAdminId] = useState<string | undefined>(undefined);
+
   // Function to log actions to the audit log
   const logAction = (projectId: string, projectName: string, action: string, notes?: string) => {
     const logEntry = {
@@ -94,6 +104,41 @@ export default function AdminPage() {
       localStorage.setItem('adminAuditLog', JSON.stringify([logEntry, ...existingLog]));
     } catch (error) {
       console.error("Error saving to localStorage:", error);
+    }
+  };
+
+  // Add handler for validation overrides
+  const handleValidationOverride = async (validation: ProjectValidation) => {
+    if (!selectedProject) return;
+    
+    try {
+      const result = await saveManualValidationOverride(selectedProject.id, validation);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save validation override');
+      }
+      
+      // Update current validation
+      setCurrentValidation(validation);
+      
+      // Also update validations state
+      setValidations(prev => ({
+        ...prev,
+        [selectedProject.id]: validation
+      }));
+      
+      toast({
+        title: "Validation updated",
+        description: "Manual validation changes have been saved.",
+        className: "bg-blue-800 border-blue-700 text-white",
+      });
+    } catch (error) {
+      console.error("Error saving validation override:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save validation changes",
+        variant: "destructive",
+      });
     }
   };
 
@@ -267,6 +312,185 @@ export default function AdminPage() {
     setRequestChangesOpen(true);
   };
   
+  // Handle approving a project
+  const handleApproveProject = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      // Find the project
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("id", id)
+        .single();
+      
+      if (error || !data) {
+        throw new Error("Project not found");
+      }
+      
+      const projectName = data.name;
+      
+      const result = await approveProject(id);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to approve project');
+      }
+      
+      // If drawer is open, close it
+      if (isDetailsOpen) {
+        setIsDetailsOpen(false);
+      }
+      
+      // Refresh the queue list
+      setRefreshCounter(prev => prev + 1);
+      
+      // Refresh stats from the server
+      await refreshStats();
+      
+      // Log the action to audit log
+      logAction(id, projectName, "approved");
+      
+      toast({
+        title: `Project approved: ${projectName}`,
+        description: "The project has been successfully approved and is now listed in the directory.",
+        className: "bg-green-800 border-green-700 text-white",
+      });
+    } catch (error) {
+      console.error("Error approving project:", error);
+      toast({
+        title: "Approval failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle rejecting a project
+  const handleRejectProject = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      // Find the project
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("id", id)
+        .single();
+      
+      if (error || !data) {
+        throw new Error("Project not found");
+      }
+      
+      const projectName = data.name;
+      
+      const result = await rejectProject(id);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to reject project');
+      }
+      
+      // If drawer is open, close it
+      if (isDetailsOpen) {
+        setIsDetailsOpen(false);
+      }
+      
+      // Refresh the queue list
+      setRefreshCounter(prev => prev + 1);
+      
+      // Refresh stats from the server
+      await refreshStats();
+      
+      // Log the action to audit log
+      logAction(id, projectName, "rejected");
+      
+      toast({
+        title: `Project rejected: ${projectName}`,
+        description: "The project has been rejected and will not be listed in the directory.",
+        className: "bg-red-800 border-red-700 text-white",
+      });
+    } catch (error) {
+      console.error("Error rejecting project:", error);
+      toast({
+        title: "Rejection failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle requesting changes
+  const handleRequestChanges = async () => {
+    if (!selectedProjectId || !requestNotes.trim()) {
+      toast({
+        title: "Input required",
+        description: "Please provide feedback notes before submitting",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // Find the project
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("id", selectedProjectId)
+        .single();
+      
+      if (error || !data) {
+        throw new Error("Project not found");
+      }
+      
+      const projectName = data.name;
+      
+      const result = await requestChanges(selectedProjectId, requestNotes);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to request changes');
+      }
+      
+      // Close dialog and reset fields
+      setRequestChangesOpen(false);
+      setSelectedProjectId(null);
+      setRequestNotes("");
+      
+      // If drawer is open, close it
+      if (isDetailsOpen) {
+        setIsDetailsOpen(false);
+      }
+      
+      // Refresh the queue list
+      setRefreshCounter(prev => prev + 1);
+      
+      // Refresh stats from the server
+      await refreshStats();
+      
+      // Log the action to audit log
+      logAction(selectedProjectId, projectName, "requested changes", requestNotes);
+      
+      toast({
+        title: `Changes requested: ${projectName}`,
+        description: "Feedback has been sent to the project owner.",
+        className: "bg-amber-800 border-amber-700 text-white",
+      });
+    } catch (error) {
+      console.error("Error requesting changes:", error);
+      toast({
+        title: "Request failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Fetch project stats
   const fetchProjectStats = async () => {
     try {
@@ -353,6 +577,19 @@ export default function AdminPage() {
     }
   };
 
+  // Get admin ID when component mounts
+  useEffect(() => {
+    const getAdminId = async () => {
+      const supabase = getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setAdminId(session.user.id);
+      }
+    };
+    
+    getAdminId();
+  }, []);
+
   // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
@@ -420,182 +657,6 @@ export default function AdminPage() {
 
     loadData();
   }, []);
-
-  const handleApproveProject = async (id: string) => {
-    setIsProcessing(true);
-    try {
-      // Find the project
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase
-        .from("projects")
-        .select("name")
-        .eq("id", id)
-        .single();
-      
-      if (error || !data) {
-        throw new Error("Project not found");
-      }
-      
-      const projectName = data.name;
-      
-      const result = await approveProject(id);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to approve project');
-      }
-      
-      // If drawer is open, close it
-      if (isDetailsOpen) {
-        setIsDetailsOpen(false);
-      }
-      
-      // Refresh the queue list
-      setRefreshCounter(prev => prev + 1);
-      
-      // Refresh stats from the server
-      await refreshStats();
-      
-      // Log the action to audit log
-      logAction(id, projectName, "approved");
-      
-      toast({
-        title: `Project approved: ${projectName}`,
-        description: "The project has been successfully approved and is now listed in the directory.",
-        className: "bg-green-800 border-green-700 text-white",
-      });
-    } catch (error) {
-      console.error("Error approving project:", error);
-      toast({
-        title: "Approval failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleRejectProject = async (id: string) => {
-    setIsProcessing(true);
-    try {
-      // Find the project
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase
-        .from("projects")
-        .select("name")
-        .eq("id", id)
-        .single();
-      
-      if (error || !data) {
-        throw new Error("Project not found");
-      }
-      
-      const projectName = data.name;
-      
-      const result = await rejectProject(id);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to reject project');
-      }
-      
-      // If drawer is open, close it
-      if (isDetailsOpen) {
-        setIsDetailsOpen(false);
-      }
-      
-      // Refresh the queue list
-      setRefreshCounter(prev => prev + 1);
-      
-      // Refresh stats from the server
-      await refreshStats();
-      
-      // Log the action to audit log
-      logAction(id, projectName, "rejected");
-      
-      toast({
-        title: `Project rejected: ${projectName}`,
-        description: "The project has been rejected and will not be listed in the directory.",
-        className: "bg-red-800 border-red-700 text-white",
-      });
-    } catch (error) {
-      console.error("Error rejecting project:", error);
-      toast({
-        title: "Rejection failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleRequestChanges = async () => {
-    if (!selectedProjectId || !requestNotes.trim()) {
-      toast({
-        title: "Input required",
-        description: "Please provide feedback notes before submitting",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      // Find the project
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase
-        .from("projects")
-        .select("name")
-        .eq("id", selectedProjectId)
-        .single();
-      
-      if (error || !data) {
-        throw new Error("Project not found");
-      }
-      
-      const projectName = data.name;
-      
-      const result = await requestChanges(selectedProjectId, requestNotes);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to request changes');
-      }
-      
-      // Close dialog and reset fields
-      setRequestChangesOpen(false);
-      setSelectedProjectId(null);
-      setRequestNotes("");
-      
-      // If drawer is open, close it
-      if (isDetailsOpen) {
-        setIsDetailsOpen(false);
-      }
-      
-      // Refresh the queue list
-      setRefreshCounter(prev => prev + 1);
-      
-      // Refresh stats from the server
-      await refreshStats();
-      
-      // Log the action to audit log
-      logAction(selectedProjectId, projectName, "requested changes", requestNotes);
-      
-      toast({
-        title: `Changes requested: ${projectName}`,
-        description: "Feedback has been sent to the project owner.",
-        className: "bg-amber-800 border-amber-700 text-white",
-      });
-    } catch (error) {
-      console.error("Error requesting changes:", error);
-      toast({
-        title: "Request failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   // Handle sign out
   const handleSignOut = async () => {
@@ -715,7 +776,7 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Project Details Drawer */}
+      {/* Project Details Drawer - Updated with new props */}
       <ProjectDetailsDrawer 
         project={selectedProject}
         isOpen={isDetailsOpen}
@@ -731,6 +792,8 @@ export default function AdminPage() {
         onApprove={handleApproveProject}
         onRequestChanges={openRequestChangesDialog}
         onReject={handleRejectProject}
+        onValidationOverride={handleValidationOverride} // Add this
+        adminId={adminId} // Add this
       />
 
       {/* Request Changes Dialog */}
