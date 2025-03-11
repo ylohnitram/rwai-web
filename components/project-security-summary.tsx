@@ -60,14 +60,14 @@ export default function ProjectSecuritySummary({
         </AlertDescription>
       </Alert>
       
-      {/* Legal Disclaimer */}
-      <Alert className="bg-amber-900/30 border-amber-800">
-        <Info className="h-4 w-4 text-amber-500 mr-2" />
-        <AlertDescription className="text-amber-200">
+      {/* Legal Disclaimer - Red Warning */}
+      <Alert className="bg-red-900/30 border-red-800">
+        <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
+        <AlertDescription className="text-red-200">
           <p>This token has not been legally validated. It may be regulated as a security (SEC) or ART (MiCA). Always conduct your own due diligence.</p>
           <p className="mt-2 text-sm">
             This platform serves purely informational purposes. We perform automated scam checks but do not verify legal status or investment potential.
-            <Link href="/legal" className="text-amber-500 hover:underline ml-1">
+            <Link href="/legal" className="text-red-400 hover:underline ml-1">
               Read Full Disclaimer
             </Link>
           </p>
