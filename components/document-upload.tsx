@@ -1,9 +1,6 @@
-// components/document-upload.tsx
-
 import { useState, useRef, useEffect } from "react"
 import { UploadCloud, File, AlertCircle, CheckCircle, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { uploadFile } from "@/lib/services/storage-service"
 import { Progress } from "@/components/ui/progress"
 
 interface DocumentUploadProps {
@@ -100,6 +97,12 @@ export default function DocumentUpload({
       // Create a unique file path
       const uniqueFilePath = filePath || `${Date.now()}_${file.name.replace(/\s+/g, '_')}`
       
+      // Create form data for the API request
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('bucket', bucketName)
+      formData.append('path', uniqueFilePath)
+      
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
@@ -111,15 +114,24 @@ export default function DocumentUpload({
         })
       }, 300)
 
-      // Upload the file
-      const fileUrl = await uploadFile(bucketName, uniqueFilePath, file)
+      // Upload the file via our API route
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      const result = await response.json()
       
       // Clear interval and set final progress
       clearInterval(progressInterval)
       setUploadProgress(100)
       
+      if (!response.ok) {
+        throw new Error(result.error || 'Upload failed')
+      }
+      
       // Call onFileUploaded callback
-      onFileUploaded(uniqueFilePath, fileUrl)
+      onFileUploaded(result.filePath, result.publicUrl)
       
       setIsSuccess(true)
       setHasExistingFile(false) // No longer using existing file

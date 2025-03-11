@@ -61,6 +61,10 @@ const formSchema = z.object({
   auditUrl: z.string().url({
     message: "Please enter a valid URL for the smart contract audit."
   }).optional().or(z.literal("")),
+  // Whitepaper URL
+  whitepaperUrl: z.string().url({
+    message: "Please enter a valid URL for the whitepaper."
+  }).optional().or(z.literal("")),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -83,6 +87,7 @@ export default function SubmitPage() {
       contactEmail: "",
       tvl: "$0M",
       auditUrl: "",
+      whitepaperUrl: "",
     },
   })
 
@@ -114,8 +119,9 @@ export default function SubmitPage() {
         contact_email: values.contactEmail,
         audit_document_path: values.auditDocumentPath,
         whitepaper_document_path: values.whitepaperDocumentPath,
-        // Add audit URL 
+        // Add URLs
         audit_url: values.auditUrl || auditDocumentUrl || null,
+        whitepaper_url: values.whitepaperUrl || whitepaperDocumentUrl || null,
       }
       
       console.log("Submitting project data:", projectData);
@@ -393,74 +399,117 @@ export default function SubmitPage() {
                   </TabsContent>
 
                   <TabsContent value="documents" className="space-y-6 mt-0">
-                    {/* Audit Document Upload */}
-                    <FormField
-                      control={form.control}
-                      name="auditDocumentPath"
-                      render={() => (
-                        <FormItem>
-                          <FormLabel>Smart Contract Audit Document</FormLabel>
-                          <FormControl>
-                            <DocumentUpload
-                              onFileUploaded={handleAuditFileUploaded}
-                              label="Audit Report"
-                              description="Upload your project's security audit or technical review document (PDF recommended)"
-                              bucketName="audit-documents"
-                              filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_audit`}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Providing an audit document from recognized security firms like CertiK, PeckShield, or Hacken will speed up the review process.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {/* Audit Report Section */}
+                    <div className="space-y-4 p-4 border border-gray-800 rounded-lg">
+                      <h3 className="font-medium text-lg mb-2">Smart Contract Audit</h3>
+                      
+                      {/* Audit Document Upload */}
+                      <FormField
+                        control={form.control}
+                        name="auditDocumentPath"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Upload Audit Document</FormLabel>
+                            <FormControl>
+                              <DocumentUpload
+                                onFileUploaded={handleAuditFileUploaded}
+                                label="Audit Report"
+                                description="Upload your project's security audit or technical review document (PDF recommended)"
+                                bucketName="audit-documents"
+                                filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_audit`}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Providing an audit document from recognized security firms like CertiK, PeckShield, or Hacken will speed up the review process.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    {/* Whitepaper Document Upload */}
-                    <FormField
-                      control={form.control}
-                      name="whitepaperDocumentPath"
-                      render={() => (
-                        <FormItem>
-                          <FormLabel>Whitepaper Document</FormLabel>
-                          <FormControl>
-                            <DocumentUpload
-                              onFileUploaded={handleWhitepaperFileUploaded}
-                              label="Whitepaper"
-                              description="Upload your project's whitepaper or technical documentation (PDF recommended)"
-                              bucketName="whitepaper-documents"
-                              filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_whitepaper`}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Providing a comprehensive whitepaper helps reviewers understand your project better.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <div className="flex items-center">
+                        <Separator className="flex-grow" />
+                        <span className="mx-2 text-xs text-gray-400">OR</span>
+                        <Separator className="flex-grow" />
+                      </div>
 
-                    <FormField
-                      control={form.control}
-                      name="auditUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Smart Contract Audit URL</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="https://certik.com/projects/yourproject" 
-                              {...field} 
-                              className="bg-gray-800 border-gray-700"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            If you don't have an audit document to upload, you can provide a link to your audit from firms like CertiK, PeckShield, or other recognized security auditors.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="auditUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Provide Audit URL</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="https://certik.com/projects/yourproject" 
+                                {...field} 
+                                className="bg-gray-800 border-gray-700"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              If you don't have an audit document to upload, you can provide a link to your audit from firms like CertiK, PeckShield, or other recognized security auditors.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Whitepaper Section */}
+                    <div className="space-y-4 p-4 border border-gray-800 rounded-lg">
+                      <h3 className="font-medium text-lg mb-2">Project Whitepaper</h3>
+                      
+                      {/* Whitepaper Document Upload */}
+                      <FormField
+                        control={form.control}
+                        name="whitepaperDocumentPath"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Upload Whitepaper Document</FormLabel>
+                            <FormControl>
+                              <DocumentUpload
+                                onFileUploaded={handleWhitepaperFileUploaded}
+                                label="Whitepaper"
+                                description="Upload your project's whitepaper or technical documentation (PDF recommended)"
+                                bucketName="whitepaper-documents"
+                                filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_whitepaper`}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Providing a comprehensive whitepaper helps reviewers understand your project better.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="flex items-center">
+                        <Separator className="flex-grow" />
+                        <span className="mx-2 text-xs text-gray-400">OR</span>
+                        <Separator className="flex-grow" />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="whitepaperUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Provide Whitepaper URL</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="https://yourproject.com/whitepaper.pdf" 
+                                {...field} 
+                                className="bg-gray-800 border-gray-700"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              If you don't have a whitepaper document to upload, you can provide a link to your whitepaper.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     <Alert className="bg-amber-900/30 border-amber-800">
                       <Info className="h-4 w-4 text-amber-500" />
