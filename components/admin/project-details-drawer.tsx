@@ -14,6 +14,7 @@ interface ProjectDetailsDrawerProps {
   onOpenChange: (open: boolean) => void;
   documentUrl: string | null;
   whitepaperUrl: string | null;
+  whitepaperDocumentUrl: string | null; // Add whitepaper document URL
   auditUrl: string | null;
   validation: ProjectValidation | null;
   isValidating: boolean;
@@ -30,6 +31,7 @@ export function ProjectDetailsDrawer({
   onOpenChange, 
   documentUrl,
   whitepaperUrl,
+  whitepaperDocumentUrl, // Add whitepaper document URL
   auditUrl,
   validation,
   isValidating,
@@ -63,7 +65,7 @@ export function ProjectDetailsDrawer({
               {/* Validation section */}
               <ProjectValidationDetails 
                 validation={validation} 
-                whitepaper={whitepaperUrl}
+                whitepaper={whitepaperUrl || whitepaperDocumentUrl}
                 auditUrl={auditUrl}
                 isLoading={isValidating} 
               />
@@ -120,11 +122,11 @@ export function ProjectDetailsDrawer({
                     </a>
                   </div>
 
-                  {project.whitepaper_url && (
+                  {(whitepaperUrl || whitepaperDocumentUrl) && (
                     <div>
                       <p className="text-sm text-gray-400">Whitepaper</p>
                       <a 
-                        href={project.whitepaper_url} 
+                        href={whitepaperDocumentUrl || whitepaperUrl} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-blue-500 hover:underline flex items-center"
@@ -150,61 +152,120 @@ export function ProjectDetailsDrawer({
                 </CardContent>
               </Card>
               
-              {/* Document Preview */}
-              {project.audit_document_path && (
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardHeader>
-                    <div className="flex items-center">
-                      <FileText className="h-5 w-5 mr-2 text-blue-500" />
-                      <CardTitle>Smart Contract Audit Document</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {documentUrl ? (
-                      <div className="space-y-4">
-                        <div className="p-4 border border-gray-700 rounded-md flex items-center justify-between bg-gray-900">
-                          <div className="flex items-center">
-                            <File className="h-8 w-8 mr-3 text-blue-500" />
-                            <div>
-                              <p className="font-medium">{project.name} Audit Document</p>
-                              <p className="text-sm text-gray-400">
-                                {project.audit_document_path.split('.').pop()?.toUpperCase() || 'Document'}
-                              </p>
+              {/* Document Preview Section */}
+              <div className="space-y-4">
+                {/* Audit Document Preview */}
+                {project.audit_document_path && (
+                  <Card className="bg-gray-800 border-gray-700">
+                    <CardHeader>
+                      <div className="flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-blue-500" />
+                        <CardTitle>Smart Contract Audit Document</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {documentUrl ? (
+                        <div className="space-y-4">
+                          <div className="p-4 border border-gray-700 rounded-md flex items-center justify-between bg-gray-900">
+                            <div className="flex items-center">
+                              <File className="h-8 w-8 mr-3 text-blue-500" />
+                              <div>
+                                <p className="font-medium">{project.name} Audit Document</p>
+                                <p className="text-sm text-gray-400">
+                                  {project.audit_document_path.split('.').pop()?.toUpperCase() || 'Document'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button asChild variant="outline" size="sm">
+                                <a href={documentUrl} target="_blank" rel="noopener noreferrer">
+                                  View
+                                </a>
+                              </Button>
+                              <Button asChild variant="default" size="sm">
+                                <a href={documentUrl} download>
+                                  Download
+                                </a>
+                              </Button>
                             </div>
                           </div>
-                          <div className="flex gap-2">
-                            <Button asChild variant="outline" size="sm">
-                              <a href={documentUrl} target="_blank" rel="noopener noreferrer">
-                                View
-                              </a>
-                            </Button>
-                            <Button asChild variant="default" size="sm">
-                              <a href={documentUrl} download>
-                                Download
-                              </a>
-                            </Button>
-                          </div>
+                          
+                          {/* If it's a PDF, we can show an embedded preview */}
+                          {documentUrl.toLowerCase().endsWith('.pdf') && (
+                            <div className="h-96 border border-gray-700 rounded-md overflow-hidden">
+                              <iframe
+                                src={`${documentUrl}#toolbar=0&navpanes=0`}
+                                className="w-full h-full"
+                                title={`${project.name} Audit Document`}
+                              />
+                            </div>
+                          )}
                         </div>
-                        
-                        {/* If it's a PDF, we can show an embedded preview */}
-                        {documentUrl.toLowerCase().endsWith('.pdf') && (
-                          <div className="h-96 border border-gray-700 rounded-md overflow-hidden">
-                            <iframe
-                              src={`${documentUrl}#toolbar=0&navpanes=0`}
-                              className="w-full h-full"
-                              title={`${project.name} Audit Document`}
-                            />
+                      ) : (
+                        <div className="text-center py-8 text-gray-400">
+                          Document exists but cannot be accessed
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Whitepaper Document Preview */}
+                {project.whitepaper_document_path && (
+                  <Card className="bg-gray-800 border-gray-700">
+                    <CardHeader>
+                      <div className="flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-green-500" />
+                        <CardTitle>Project Whitepaper</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {whitepaperDocumentUrl ? (
+                        <div className="space-y-4">
+                          <div className="p-4 border border-gray-700 rounded-md flex items-center justify-between bg-gray-900">
+                            <div className="flex items-center">
+                              <File className="h-8 w-8 mr-3 text-green-500" />
+                              <div>
+                                <p className="font-medium">{project.name} Whitepaper</p>
+                                <p className="text-sm text-gray-400">
+                                  {project.whitepaper_document_path.split('.').pop()?.toUpperCase() || 'Document'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button asChild variant="outline" size="sm">
+                                <a href={whitepaperDocumentUrl} target="_blank" rel="noopener noreferrer">
+                                  View
+                                </a>
+                              </Button>
+                              <Button asChild variant="default" size="sm">
+                                <a href={whitepaperDocumentUrl} download>
+                                  Download
+                                </a>
+                              </Button>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-400">
-                        Document exists but cannot be accessed
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+                          
+                          {/* If it's a PDF, we can show an embedded preview */}
+                          {whitepaperDocumentUrl.toLowerCase().endsWith('.pdf') && (
+                            <div className="h-96 border border-gray-700 rounded-md overflow-hidden">
+                              <iframe
+                                src={`${whitepaperDocumentUrl}#toolbar=0&navpanes=0`}
+                                className="w-full h-full"
+                                title={`${project.name} Whitepaper`}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-400">
+                          Document exists but cannot be accessed
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
               
               {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-4">

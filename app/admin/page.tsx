@@ -53,6 +53,7 @@ export default function AdminPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [whitepaperUrl, setWhitepaperUrl] = useState<string | null>(null);
+  const [whitepaperDocumentUrl, setWhitepaperDocumentUrl] = useState<string | null>(null);
   const [auditUrl, setAuditUrl] = useState<string | null>(null);
   
   // For validation
@@ -70,6 +71,7 @@ export default function AdminPage() {
     projectId: string;
     projectName: string;
     action: string;
+    adminEmail?: string;
     notes?: string;
   }>>([]);
 
@@ -170,6 +172,7 @@ export default function AdminPage() {
     setIsDetailsOpen(true);
     setCurrentValidation(null);
     setWhitepaperUrl(null);
+    setWhitepaperDocumentUrl(null);
     setAuditUrl(null);
     
     // If the project has a whitepaper URL, use it
@@ -179,6 +182,21 @@ export default function AdminPage() {
       // Try to get whitepaper URL from project website as a fallback
       const whitepaper = `${project.website.replace(/\/$/, '')}/whitepaper`;
       setWhitepaperUrl(whitepaper);
+    }
+    
+    // If the project has a whitepaper document, get a URL for it
+    if (project.whitepaper_document_path) {
+      try {
+        const supabase = getSupabaseClient();
+        const { data } = supabase.storage
+          .from('whitepaper-documents')
+          .getPublicUrl(project.whitepaper_document_path);
+        
+        setWhitepaperDocumentUrl(data.publicUrl);
+      } catch (error) {
+        console.error('Error getting whitepaper document URL:', error);
+        setWhitepaperDocumentUrl(null);
+      }
     }
     
     // If the project has an audit URL, use it
@@ -704,6 +722,7 @@ export default function AdminPage() {
         onOpenChange={setIsDetailsOpen}
         documentUrl={documentUrl}
         whitepaperUrl={whitepaperUrl}
+        whitepaperDocumentUrl={whitepaperDocumentUrl}
         auditUrl={auditUrl}
         validation={currentValidation}
         isValidating={isValidating}

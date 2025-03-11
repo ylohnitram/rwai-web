@@ -21,6 +21,7 @@ export type Project = {
   reviewer_id?: string;
   reviewed_at?: string;
   audit_document_path?: string;
+  whitepaper_document_path?: string; // Add this line
   contact_email?: string;
 
   audit_url?: string;

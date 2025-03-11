@@ -55,14 +55,12 @@ const formSchema = z.object({
   }),
   // Optional audit document path
   auditDocumentPath: z.string().optional(),
+  // Optional whitepaper document path
+  whitepaperDocumentPath: z.string().optional(),
   // Smart contract audit URL
   auditUrl: z.string().url({
     message: "Please enter a valid URL for the smart contract audit."
-  }).optional(),
-  // Whitepaper URL
-  whitepaperUrl: z.string().url({
-    message: "Please enter a valid URL for the whitepaper."
-  }).optional(),
+  }).optional().or(z.literal("")),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -72,6 +70,7 @@ export default function SubmitPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [auditDocumentUrl, setAuditDocumentUrl] = useState<string | null>(null)
+  const [whitepaperDocumentUrl, setWhitepaperDocumentUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>("general")
 
   const form = useForm<FormValues>({
@@ -84,13 +83,17 @@ export default function SubmitPage() {
       contactEmail: "",
       tvl: "$0M",
       auditUrl: "",
-      whitepaperUrl: "",
     },
   })
 
-  const handleFileUploaded = (filePath: string, fileUrl: string) => {
+  const handleAuditFileUploaded = (filePath: string, fileUrl: string) => {
     form.setValue("auditDocumentPath", filePath)
     setAuditDocumentUrl(fileUrl)
+  }
+
+  const handleWhitepaperFileUploaded = (filePath: string, fileUrl: string) => {
+    form.setValue("whitepaperDocumentPath", filePath)
+    setWhitepaperDocumentUrl(fileUrl)
   }
 
   async function onSubmit(values: FormValues) {
@@ -107,12 +110,12 @@ export default function SubmitPage() {
         description: values.description,
         website: values.website,
         tvl: values.tvl,
-        // Store contact email and audit document path
+        // Store contact email and document paths
         contact_email: values.contactEmail,
         audit_document_path: values.auditDocumentPath,
-        // Add audit URL and whitepaper URL
+        whitepaper_document_path: values.whitepaperDocumentPath,
+        // Add audit URL 
         audit_url: values.auditUrl || auditDocumentUrl || null,
-        whitepaper_url: values.whitepaperUrl || null,
       }
       
       console.log("Submitting project data:", projectData);
@@ -169,6 +172,7 @@ export default function SubmitPage() {
                 setIsSubmitted(false)
                 form.reset()
                 setAuditDocumentUrl(null)
+                setWhitepaperDocumentUrl(null)
               }}>Submit Another Project</Button>
             </div>
           </CardContent>
@@ -208,10 +212,9 @@ export default function SubmitPage() {
           <CardHeader>
             <CardTitle>Project Information</CardTitle>
             <CardDescription>Fields marked with an asterisk (*) are required.</CardDescription>
-            <Tabs defaultValue="general" className="w-full mt-4" onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-3 w-full">
+            <Tabs value={activeTab} className="w-full mt-4" onValueChange={setActiveTab}>
+              <TabsList className="grid grid-cols-2 w-full">
                 <TabsTrigger value="general">General Info</TabsTrigger>
-                <TabsTrigger value="technical">Technical Info</TabsTrigger>
                 <TabsTrigger value="documents">Documents</TabsTrigger>
               </TabsList>
             </Tabs>
@@ -219,275 +222,265 @@ export default function SubmitPage() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {activeTab === "general" && (
-                  <div className="space-y-6">
+                <TabsContent value="general" className="space-y-6 mt-0">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project Name *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter your project name"
+                            {...field}
+                            className="bg-gray-800 border-gray-700"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
-                      name="name"
+                      name="type"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Project Name *</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter your project name"
-                              {...field}
-                              className="bg-gray-800 border-gray-700"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="type"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Asset Type *</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="bg-gray-800 border-gray-700">
-                                  <SelectValue placeholder="Select asset type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="bg-gray-800 border-gray-700">
-                                <SelectItem value="Real Estate">Real Estate</SelectItem>
-                                <SelectItem value="Art">Art</SelectItem>
-                                <SelectItem value="Commodities">Commodities</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="blockchain"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Blockchain *</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="bg-gray-800 border-gray-700">
-                                  <SelectValue placeholder="Select blockchain" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="bg-gray-800 border-gray-700">
-                                <SelectItem value="Ethereum">Ethereum</SelectItem>
-                                <SelectItem value="Polygon">Polygon</SelectItem>
-                                <SelectItem value="Solana">Solana</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="roi"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Expected ROI (%) *</FormLabel>
+                          <FormLabel>Asset Type *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <Input type="number" step="0.1" {...field} className="bg-gray-800 border-gray-700" />
+                              <SelectTrigger className="bg-gray-800 border-gray-700">
+                                <SelectValue placeholder="Select asset type" />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormDescription>Annual expected return on investment</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                            <SelectContent className="bg-gray-800 border-gray-700">
+                              <SelectItem value="Real Estate">Real Estate</SelectItem>
+                              <SelectItem value="Art">Art</SelectItem>
+                              <SelectItem value="Commodities">Commodities</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={form.control}
-                        name="tvl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Total Value Locked (TVL) *</FormLabel>
+                    <FormField
+                      control={form.control}
+                      name="blockchain"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Blockchain *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <Input 
-                                placeholder="$10M" 
-                                {...field} 
-                                className="bg-gray-800 border-gray-700" 
-                              />
+                              <SelectTrigger className="bg-gray-800 border-gray-700">
+                                <SelectValue placeholder="Select blockchain" />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormDescription>Current total value of assets</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="website"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Project Website *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="https://..." {...field} className="bg-gray-800 border-gray-700" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Project Description *</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Provide a detailed description of your project..."
-                              className="resize-none min-h-[150px] bg-gray-800 border-gray-700"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Include key information about the asset, its tokenization structure, and investment benefits.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="contactEmail"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Email *</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="your@email.com"
-                              {...field}
-                              className="bg-gray-800 border-gray-700"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            We'll contact you at this email address regarding your submission and review process.
-                          </FormDescription>
+                            <SelectContent className="bg-gray-800 border-gray-700">
+                              <SelectItem value="Ethereum">Ethereum</SelectItem>
+                              <SelectItem value="Polygon">Polygon</SelectItem>
+                              <SelectItem value="Solana">Solana</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                )}
 
-                {activeTab === "technical" && (
-                  <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
-                      name="auditUrl"
+                      name="roi"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Smart Contract Audit URL</FormLabel>
+                          <FormLabel>Expected ROI (%) *</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.1" {...field} className="bg-gray-800 border-gray-700" />
+                          </FormControl>
+                          <FormDescription>Annual expected return on investment</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tvl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Total Value Locked (TVL) *</FormLabel>
                           <FormControl>
                             <Input 
-                              placeholder="https://certik.com/projects/yourproject" 
+                              placeholder="$10M" 
                               {...field} 
-                              className="bg-gray-800 border-gray-700"
+                              className="bg-gray-800 border-gray-700" 
                             />
                           </FormControl>
-                          <FormDescription>
-                            Provide a link to your smart contract audit from firms like CertiK, PeckShield, or other recognized security auditors.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Alert className="bg-amber-900/30 border-amber-800">
-                      <Info className="h-4 w-4 text-amber-500" />
-                      <AlertTitle>Smart Contract Audit</AlertTitle>
-                      <AlertDescription>
-                        Projects with verified audits from recognized security firms receive a higher trust score. 
-                        We recommend providing either a URL to the audit or uploading the audit document in the Documents section.
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                )}
-
-                {activeTab === "documents" && (
-                  <div className="space-y-6">
-                    {/* Audit Document Upload */}
-                    <FormField
-                      control={form.control}
-                      name="auditDocumentPath"
-                      render={() => (
-                        <FormItem>
-                          <FormLabel>Smart Contract Audit Document</FormLabel>
-                          <FormControl>
-                            <DocumentUpload
-                              onFileUploaded={handleFileUploaded}
-                              label="Audit Report"
-                              description="Upload your project's security audit or technical review document (PDF recommended)"
-                              bucketName="audit-documents"
-                              filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_audit`}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Providing an audit document from recognized security firms like CertiK, PeckShield, or Hacken will speed up the review process.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="whitepaperUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Whitepaper URL</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="https://yourproject.com/whitepaper.pdf" 
-                              {...field} 
-                              className="bg-gray-800 border-gray-700"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Provide a link to your project's whitepaper or technical documentation.
-                          </FormDescription>
+                          <FormDescription>Current total value of assets</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                )}
 
-                <div className="pt-4">
-                  {activeTab !== "general" && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="mr-4"
-                      onClick={() => setActiveTab(activeTab === "technical" ? "general" : "technical")}
-                    >
-                      Previous
-                    </Button>
-                  )}
+                  <FormField
+                    control={form.control}
+                    name="website"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project Website *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} className="bg-gray-800 border-gray-700" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project Description *</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Provide a detailed description of your project..."
+                            className="resize-none min-h-[150px] bg-gray-800 border-gray-700"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Include key information about the asset, its tokenization structure, and investment benefits.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="contactEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Email *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="your@email.com"
+                            {...field}
+                            className="bg-gray-800 border-gray-700"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          We'll contact you at this email address regarding your submission and review process.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
-                  {activeTab !== "documents" && (
+                  <div className="flex justify-end">
                     <Button 
                       type="button"
-                      onClick={() => setActiveTab(activeTab === "general" ? "technical" : "documents")}
+                      onClick={() => setActiveTab("documents")}
                     >
                       Next
                     </Button>
-                  )}
-                  
-                  {activeTab === "documents" && (
-                    <Button type="submit" disabled={isSubmitting} className="w-full mt-4">
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="documents" className="space-y-6 mt-0">
+                  {/* Audit Document Upload */}
+                  <FormField
+                    control={form.control}
+                    name="auditDocumentPath"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Smart Contract Audit Document</FormLabel>
+                        <FormControl>
+                          <DocumentUpload
+                            onFileUploaded={handleAuditFileUploaded}
+                            label="Audit Report"
+                            description="Upload your project's security audit or technical review document (PDF recommended)"
+                            bucketName="audit-documents"
+                            filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_audit`}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Providing an audit document from recognized security firms like CertiK, PeckShield, or Hacken will speed up the review process.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Whitepaper Document Upload */}
+                  <FormField
+                    control={form.control}
+                    name="whitepaperDocumentPath"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Whitepaper Document</FormLabel>
+                        <FormControl>
+                          <DocumentUpload
+                            onFileUploaded={handleWhitepaperFileUploaded}
+                            label="Whitepaper"
+                            description="Upload your project's whitepaper or technical documentation (PDF recommended)"
+                            bucketName="whitepaper-documents"
+                            filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_whitepaper`}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Providing a comprehensive whitepaper helps reviewers understand your project better.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="auditUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Smart Contract Audit URL</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="https://certik.com/projects/yourproject" 
+                            {...field} 
+                            className="bg-gray-800 border-gray-700"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          If you don't have an audit document to upload, you can provide a link to your audit from firms like CertiK, PeckShield, or other recognized security auditors.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Alert className="bg-amber-900/30 border-amber-800">
+                    <Info className="h-4 w-4 text-amber-500" />
+                    <AlertTitle>Security Audits & Documentation</AlertTitle>
+                    <AlertDescription>
+                      Projects with verified audits from recognized security firms receive a higher trust score. 
+                      We recommend providing both the whitepaper and audit documents to speed up the review process.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="flex justify-between pt-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setActiveTab("general")}
+                    >
+                      Previous
+                    </Button>
+                    
+                    <Button type="submit" disabled={isSubmitting}>
                       {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -497,8 +490,8 @@ export default function SubmitPage() {
                         "Submit for Review"
                       )}
                     </Button>
-                  )}
-                </div>
+                  </div>
+                </TabsContent>
               </form>
             </Form>
           </CardContent>
