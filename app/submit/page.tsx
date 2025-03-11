@@ -1,3 +1,4 @@
+// app/submit/page.tsx
 "use client"
 
 import { useState } from "react"
@@ -143,6 +144,10 @@ export default function SubmitPage() {
       console.log("Submission result:", result);
       
       if (!response.ok) {
+        // Special handling for conflict (duplicate name)
+        if (response.status === 409) {
+          throw new Error(result.error || 'A project with this name already exists. Please choose a different name.');
+        }
         throw new Error(result.error || 'Failed to submit project')
       }
       

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "migrate": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/migrate.ts",
-    "types:supabase": "supabase gen types typescript --project-id your-project-id > types/supabase-generated.ts"
+    "types:supabase": "supabase gen types typescript --project-id your-project-id > types/supabase-generated.ts",
+    "clean-duplicates": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/remove-duplicate-projects.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",

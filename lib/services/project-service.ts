@@ -336,6 +336,23 @@ export async function getProjectStats(): Promise<{
   };
 }
 
+// Checks if a project with the same name already exists
+export async function projectExists(name: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  
+  const { data, error, count } = await supabase
+    .from("projects")
+    .select("*", { count: "exact", head: true })
+    .ilike("name", name);
+    
+  if (error) {
+    console.error("Error checking if project exists:", error);
+    throw new Error(`Error checking if project exists: ${error.message}`);
+  }
+  
+  return (count || 0) > 0;
+}
+
 export async function getProjectDistribution(): Promise<{
   byBlockchain: { name: string; value: number }[];
   byAssetType: { name: string; value: number }[];

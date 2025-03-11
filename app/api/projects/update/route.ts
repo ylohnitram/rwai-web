@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/services/email-service';
+import { projectExists } from '@/lib/services/project-service';
 
 // Create a Supabase client for server-side API routes
 const supabaseAdmin = createClient(
@@ -77,6 +78,33 @@ export async function PUT(request: Request) {
         { error: "Cannot update project that has already been approved" },
         { status: 403 }
       );
+    }
+    
+    // If the name is being changed, check if the new name already exists for a different project
+    if (updatedData.name && updatedData.name !== existingProject.name) {
+      try {
+        // We need to check if another project (not this one) has the same name
+        const { data, count, error } = await supabaseAdmin
+          .from('projects')
+          .select('*', { count: 'exact' })
+          .neq('id', existingProject.id) // Exclude current project
+          .ilike('name', updatedData.name);
+          
+        if (error) {
+          throw error;
+        }
+        
+        if ((count || 0) > 0) {
+          console.log(`Project with name "${updatedData.name}" already exists`);
+          return NextResponse.json(
+            { error: `A project with the name "${updatedData.name}" already exists. Please use a different name.` },
+            { status: 409 }
+          );
+        }
+      } catch (checkError) {
+        console.error("Error checking if project name exists:", checkError);
+        // Continue even if the check fails
+      }
     }
     
     // Don't allow changing certain fields

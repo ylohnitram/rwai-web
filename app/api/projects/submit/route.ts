@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/services/email-service';
+import { projectExists } from '@/lib/services/project-service';
 
 // Create a Supabase client for server-side API routes
 const supabaseAdmin = createClient(
@@ -29,6 +30,21 @@ export async function POST(request: Request) {
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+    
+    // Check if a project with the same name already exists
+    try {
+      const exists = await projectExists(projectData.name);
+      if (exists) {
+        console.log(`Project with name "${projectData.name}" already exists`);
+        return NextResponse.json(
+          { error: `A project with the name "${projectData.name}" already exists. Please use a different name.` },
+          { status: 409 }  // 409 Conflict status code is appropriate for duplicate resources
+        );
+      }
+    } catch (checkError) {
+      console.error("Error checking if project exists:", checkError);
+      // Continue even if the check fails - better to allow a potential duplicate than reject a valid submission
     }
     
     // Set status to pending and approved to false by default

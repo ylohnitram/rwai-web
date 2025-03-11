@@ -1,4 +1,3 @@
-// app/edit/page.tsx
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
@@ -288,6 +287,10 @@ function EditProjectContent() {
       const result = await response.json()
       
       if (!response.ok) {
+        // Special handling for conflict (duplicate name)
+        if (response.status === 409) {
+          throw new Error(result.error || 'A project with this name already exists. Please choose a different name.');
+        }
         throw new Error(result.error || 'Failed to update project')
       }
       
