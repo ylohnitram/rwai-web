@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, CheckCircle, ExternalLink } from "lucide-react"
+import { ArrowLeft, CheckCircle, ExternalLink, FileText } from "lucide-react"
 import type { Metadata } from "next"
 
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import Breadcrumbs from "@/components/breadcrumbs"
 import ProjectSecuritySummary from "@/components/project-security-summary"
 import AuditDocumentViewer from "@/components/audit-document-viewer"
+import DocumentWarning from "@/components/document-warning"
 import { getProjectBySlug, getProjects } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
 
@@ -109,11 +110,54 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </Card>
 
           {/* Audit Document Viewer */}
-          <AuditDocumentViewer 
-            auditDocumentPath={project.audit_document_path}
-            auditUrl={project.auditUrl}
-            projectName={project.name}
-          />
+          <div className="mt-6">
+            {(project.audit_document_path || project.audit_url) && (
+              <>
+                <DocumentWarning />
+                <AuditDocumentViewer 
+                  auditDocumentPath={project.audit_document_path}
+                  auditUrl={project.audit_url}
+                  projectName={project.name}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Whitepaper Document Section (if available) */}
+          {(project.whitepaper_document_path || project.whitepaper_url) && (
+            <Card className="bg-gray-900 border-gray-800 mt-6">
+              <CardHeader>
+                <CardTitle>Project Whitepaper</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DocumentWarning />
+                <div className="p-4 border border-gray-800 rounded-md bg-gray-800/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 mr-2 text-blue-500" />
+                      <div>
+                        <p className="font-medium">{project.name} Whitepaper</p>
+                        <p className="text-sm text-gray-400">Project documentation</p>
+                      </div>
+                    </div>
+                    <Button asChild variant="outline">
+                      <a 
+                        href={project.whitepaper_url || 
+                              (project.whitepaper_document_path ? 
+                                `/api/documents/whitepaper/${project.id}` : 
+                                `${project.website}/whitepaper`)}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View Whitepaper
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div>
@@ -164,12 +208,38 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                     Website
                   </a>
                 </Button>
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <a href={`${project.website}/whitepaper`} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Whitepaper
-                  </a>
-                </Button>
+                
+                {(project.whitepaper_url || project.whitepaper_document_path) && (
+                  <Button asChild variant="outline" className="w-full justify-start">
+                    <a 
+                      href={project.whitepaper_url || 
+                            (project.whitepaper_document_path ? 
+                              `/api/documents/whitepaper/${project.id}` : 
+                              `${project.website}/whitepaper`)}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Whitepaper
+                    </a>
+                  </Button>
+                )}
+                
+                {(project.audit_url || project.audit_document_path) && (
+                  <Button asChild variant="outline" className="w-full justify-start">
+                    <a 
+                      href={project.audit_url ||
+                            (project.audit_document_path ? 
+                              `/api/documents/audit/${project.id}` : 
+                              "#")}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Audit Report
+                    </a>
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
