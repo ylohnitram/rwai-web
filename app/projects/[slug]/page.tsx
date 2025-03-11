@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import Breadcrumbs from "@/components/breadcrumbs"
 import ProjectSecuritySummary from "@/components/project-security-summary"
 import AuditDocumentViewer from "@/components/audit-document-viewer"
-import DocumentWarning from "@/components/document-warning"
+import DocumentSectionWarning from "@/components/document-section-warning"
 import { getProjectBySlug, getProjects } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
 
@@ -109,54 +109,56 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </CardContent>
           </Card>
 
-          {/* Audit Document Viewer */}
-          <div className="mt-6">
-            {(project.audit_document_path || project.audit_url) && (
-              <>
-                <DocumentWarning />
+          {/* Documents Section */}
+          {(project.audit_document_path || project.audit_url || project.whitepaper_document_path || project.whitepaper_url) && (
+            <div className="mt-6">
+              {/* Single document warning for all documents */}
+              <DocumentSectionWarning />
+              
+              {/* Audit Document Viewer */}
+              {(project.audit_document_path || project.audit_url) && (
                 <AuditDocumentViewer 
                   auditDocumentPath={project.audit_document_path}
                   auditUrl={project.audit_url}
                   projectName={project.name}
                 />
-              </>
-            )}
-          </div>
-
-          {/* Whitepaper Document Section (if available) */}
-          {(project.whitepaper_document_path || project.whitepaper_url) && (
-            <Card className="bg-gray-900 border-gray-800 mt-6">
-              <CardHeader>
-                <CardTitle>Project Whitepaper</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DocumentWarning />
-                <div className="p-4 border border-gray-800 rounded-md bg-gray-800/50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <FileText className="h-5 w-5 mr-2 text-blue-500" />
-                      <div>
-                        <p className="font-medium">{project.name} Whitepaper</p>
-                        <p className="text-sm text-gray-400">Project documentation</p>
+              )}
+              
+              {/* Whitepaper Document Section (if available) */}
+              {(project.whitepaper_document_path || project.whitepaper_url) && (
+                <Card className="bg-gray-900 border-gray-800 mt-6">
+                  <CardHeader>
+                    <CardTitle>Project Whitepaper</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="p-4 border border-gray-800 rounded-md bg-gray-800/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <FileText className="h-5 w-5 mr-2 text-blue-500" />
+                          <div>
+                            <p className="font-medium">{project.name} Whitepaper</p>
+                            <p className="text-sm text-gray-400">Project documentation</p>
+                          </div>
+                        </div>
+                        <Button asChild variant="outline">
+                          <a 
+                            href={project.whitepaper_url || 
+                                  (project.whitepaper_document_path ? 
+                                    `/api/documents/whitepaper/${project.id}` : 
+                                    `${project.website}/whitepaper`)}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View Whitepaper
+                          </a>
+                        </Button>
                       </div>
                     </div>
-                    <Button asChild variant="outline">
-                      <a 
-                        href={project.whitepaper_url || 
-                              (project.whitepaper_document_path ? 
-                                `/api/documents/whitepaper/${project.id}` : 
-                                `${project.website}/whitepaper`)}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        View Whitepaper
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
         </div>
 
