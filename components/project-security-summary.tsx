@@ -24,54 +24,58 @@ export default function ProjectSecuritySummary({
       {/* Technical Security Checks */}
       <Alert className={`${allChecksPassed ? "bg-green-900/30 border-green-800" : "bg-amber-900/30 border-amber-800"}`}>
         <Shield className="h-4 w-4 text-amber-500 mr-2" />
-        <AlertTitle className="flex items-center">
-          Security Check
-          <Badge className={`ml-2 ${
-            riskLevel === "low" ? "bg-green-600" : 
-            riskLevel === "medium" ? "bg-amber-600" : "bg-red-600"
-          }`}>
-            {riskLevel.toUpperCase()} RISK
-          </Badge>
-        </AlertTitle>
-        <AlertDescription>
-          <ul className="list-disc pl-5 space-y-1 mt-2">
-            <li className="flex items-center">
-              {scamReports === 0 ? 
-                <CheckCircle className="h-3 w-3 text-green-500 mr-1" /> : 
-                <XCircle className="h-3 w-3 text-red-500 mr-1" />
-              }
-              Scam database: {scamReports} reports
-            </li>
-            <li className="flex items-center">
-              {!sanctionDetected ? 
-                <CheckCircle className="h-3 w-3 text-green-500 mr-1" /> : 
-                <XCircle className="h-3 w-3 text-red-500 mr-1" />
-              }
-              Sanctions check: {sanctionDetected ? "Detected" : "Not Detected"}
-            </li>
-            <li className="flex items-center">
-              {auditVerified ? 
-                <CheckCircle className="h-3 w-3 text-green-500 mr-1" /> : 
-                <AlertTriangle className="h-3 w-3 text-amber-500 mr-1" />
-              }
-              Smart contract audit: {auditVerified ? "Verified" : "Unverified"}
-            </li>
-          </ul>
-        </AlertDescription>
+        <div>
+          <AlertTitle className="flex items-center">
+            Security Check
+            <Badge className={`ml-2 ${
+              riskLevel === "low" ? "bg-green-600" : 
+              riskLevel === "medium" ? "bg-amber-600" : "bg-red-600"
+            }`}>
+              {riskLevel.toUpperCase()} RISK
+            </Badge>
+          </AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-5 space-y-1 mt-2">
+              <li className="flex items-center">
+                {scamReports === 0 ? 
+                  <CheckCircle className="h-3 w-3 text-green-500 mr-1" /> : 
+                  <XCircle className="h-3 w-3 text-red-500 mr-1" />
+                }
+                Scam database: {scamReports} reports
+              </li>
+              <li className="flex items-center">
+                {!sanctionDetected ? 
+                  <CheckCircle className="h-3 w-3 text-green-500 mr-1" /> : 
+                  <XCircle className="h-3 w-3 text-red-500 mr-1" />
+                }
+                Sanctions check: {sanctionDetected ? "Detected" : "Not Detected"}
+              </li>
+              <li className="flex items-center">
+                {auditVerified ? 
+                  <CheckCircle className="h-3 w-3 text-green-500 mr-1" /> : 
+                  <AlertTriangle className="h-3 w-3 text-amber-500 mr-1" />
+                }
+                Smart contract audit: {auditVerified ? "Verified" : "Unverified"}
+              </li>
+            </ul>
+          </AlertDescription>
+        </div>
       </Alert>
       
-      {/* Legal Disclaimer - Red Warning */}
-      <Alert className="bg-red-900/30 border-red-800">
-        <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
-        <AlertDescription className="text-red-200">
-          <p>This token has not been legally validated. It may be regulated as a security (SEC) or ART (MiCA). Always conduct your own due diligence.</p>
-          <p className="mt-2 text-sm">
-            This platform serves purely informational purposes. We perform automated scam checks but do not verify legal status or investment potential.
-            <Link href="/legal" className="text-red-400 hover:underline ml-1">
-              Read Full Disclaimer
-            </Link>
-          </p>
-        </AlertDescription>
+      {/* Legal Disclaimer - Using consistent styling */}
+      <Alert className="bg-[#2b1216] border-amber-800/50">
+        <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />
+        <div>
+          <AlertTitle className="text-amber-500">Legal Disclaimer</AlertTitle>
+          <AlertDescription className="text-amber-100/90">
+            <p>This token has not been legally validated. It may be regulated as a security (SEC) or ART (MiCA). Always conduct your own due diligence.</p>
+            <div className="mt-2">
+              <Link href="/legal" className="text-amber-400 hover:underline">
+                Read Full Disclaimer
+              </Link>
+            </div>
+          </AlertDescription>
+        </div>
       </Alert>
     </div>
   );
