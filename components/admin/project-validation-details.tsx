@@ -2,7 +2,7 @@ import { Shield, CheckCircle, XCircle, AlertTriangle, ExternalLink } from "lucid
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ProjectValidation } from "@/lib/services/validation-service";
 
 interface ProjectValidationDetailsProps {
@@ -63,6 +63,14 @@ export function ProjectValidationDetails({
 
   const { scamCheck, sanctionsCheck, auditCheck, riskLevel, overallPassed } = validation;
 
+  // Determine the warning message based on which checks failed
+  let warningMessage = "";
+  if (!scamCheck.passed || !sanctionsCheck.passed) {
+    warningMessage = "This project has failed critical validation checks and should be rejected.";
+  } else if (!auditCheck.passed) {
+    warningMessage = "This project requires manual verification of the audit document before approval.";
+  }
+
   return (
     <Card className="bg-gray-800 border-gray-700 mb-4">
       <CardHeader>
@@ -98,7 +106,7 @@ export function ProjectValidationDetails({
             <div>
               <p className="font-medium">Scam Database</p>
               <p className="text-sm text-gray-400">
-                {scamCheck.details || (scamCheck.passed ? 'No matches found' : 'Scan failed')}
+                {scamCheck.details || (scamCheck.passed ? 'No matches found' : 'Scam indicators detected')}
               </p>
             </div>
           </div>
@@ -114,7 +122,7 @@ export function ProjectValidationDetails({
             <div>
               <p className="font-medium">Sanctions Check</p>
               <p className="text-sm text-gray-400">
-                {sanctionsCheck.details || (sanctionsCheck.passed ? 'No sanctions detected' : 'Scan failed')}
+                {sanctionsCheck.details || (sanctionsCheck.passed ? 'No sanctions detected' : 'Sanctions detected')}
               </p>
             </div>
           </div>
@@ -134,23 +142,21 @@ export function ProjectValidationDetails({
             <div>
               <p className="font-medium">Smart Contract Audit</p>
               <p className="text-sm text-gray-400">
-                {auditCheck.details || (auditCheck.passed ? 'Verified' : 'Not verified')}
+                {auditCheck.details || (auditCheck.passed ? 'Verified' : 'Manual verification required')}
               </p>
             </div>
           </div>
         </div>
 
-        {!overallPassed && (
-          <div className="p-4 bg-red-900/20 border border-red-700 rounded-md mt-4">
-            <p className="text-red-300 font-medium">
-              This project has failed critical validation checks and should be rejected.
-            </p>
-          </div>
+        {warningMessage && (
+          <Alert className={!scamCheck.passed || !sanctionsCheck.passed ? "bg-red-900/20 border-red-700" : "bg-yellow-900/20 border-yellow-700"}>
+            <AlertDescription className={!scamCheck.passed || !sanctionsCheck.passed ? "text-red-300" : "text-yellow-300"}>
+              {warningMessage}
+            </AlertDescription>
+          </Alert>
         )}
 
-        <Separator className="bg-gray-700 my-4" />
-
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col md:flex-row gap-4 mt-4">
           {auditUrl && (
             <Button asChild variant="outline" size="sm">
               <a href={auditUrl} target="_blank" rel="noopener noreferrer">

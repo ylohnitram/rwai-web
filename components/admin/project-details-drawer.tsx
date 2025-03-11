@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Project } from "@/types/project"
 import { ProjectValidation } from "@/lib/services/validation-service"
 import { ProjectValidationDetails } from "./project-validation-details"
-import { ManualValidationReview } from "./manual-validation-review" // Add this import
+import { ManualValidationReview } from "./manual-validation-review"
 
 interface ProjectDetailsDrawerProps {
   project: Project | null;
@@ -24,8 +24,8 @@ interface ProjectDetailsDrawerProps {
   onApprove: (id: string) => Promise<void>;
   onRequestChanges: (id: string) => void;
   onReject: (id: string) => Promise<void>;
-  onValidationOverride: (validation: ProjectValidation) => Promise<void>; // Add this
-  adminId?: string; // Add this
+  onValidationOverride: (validation: ProjectValidation) => Promise<void>;
+  adminId?: string;
 }
 
 export function ProjectDetailsDrawer({ 
@@ -43,20 +43,20 @@ export function ProjectDetailsDrawer({
   onApprove,
   onRequestChanges,
   onReject,
-  onValidationOverride, // Add this
-  adminId // Add this
+  onValidationOverride,
+  adminId
 }: ProjectDetailsDrawerProps) {
-  // Function to check if approval should be disabled
-  const shouldDisableApproval = () => {
-    // Disable if processing or validating
-    if (isProcessing || isValidating) return true;
-    
-    // If validation exists and it fails critical checks AND hasn't been manually overridden,
-    // disable approval
-    if (validation && !validation.overallPassed && !validation.manuallyReviewed) return true;
-    
-    return false;
-  };
+  // Determine action button states based on validation
+  const hasCriticalFailure = validation && (!validation.scamCheck.passed || !validation.sanctionsCheck.passed);
+  const requiresAuditVerification = validation && !validation.auditCheck.passed && !validation.auditCheck.manualOverride;
+  
+  // Only allow approval if:
+  // 1. No critical failures exist (scam and sanctions checks passed)
+  // 2. Either audit check is passed OR it has been manually reviewed and approved
+  const canApprove = validation && 
+    validation.scamCheck.passed && 
+    validation.sanctionsCheck.passed && 
+    (validation.auditCheck.passed || (validation.auditCheck.manualOverride && validation.auditCheck.passed));
 
   return (
     <Drawer open={isOpen} onOpenChange={onOpenChange}>
@@ -304,6 +304,7 @@ export function ProjectDetailsDrawer({
                   </Button>
                 )}
                 
+                {/* Action buttons with dynamic state based on validation */}
                 <Button 
                   variant="destructive" 
                   onClick={() => {
@@ -314,6 +315,7 @@ export function ProjectDetailsDrawer({
                 >
                   <X className="h-4 w-4 mr-1" /> Reject
                 </Button>
+                
                 <Button 
                   variant="outline"
                   className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
@@ -321,17 +323,18 @@ export function ProjectDetailsDrawer({
                     onRequestChanges(project.id);
                     onOpenChange(false);
                   }}
-                  disabled={isProcessing}
+                  disabled={isProcessing || hasCriticalFailure}
                 >
                   <FileEdit className="h-4 w-4 mr-1" /> Request Changes
                 </Button>
+                
                 <Button 
                   className="bg-green-600 hover:bg-green-700"
                   onClick={() => {
                     onApprove(project.id);
                     onOpenChange(false);
                   }}
-                  disabled={shouldDisableApproval()}
+                  disabled={isProcessing || hasCriticalFailure || requiresAuditVerification || !canApprove}
                 >
                   <Check className="h-4 w-4 mr-1" /> Approve
                 </Button>

@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { Shield, CheckCircle, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { ProjectValidation, applyManualOverride } from "@/lib/services/validation-service";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,7 +26,6 @@ export function ManualValidationReview({
   adminId
 }: ManualValidationReviewProps) {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [localValidation, setLocalValidation] = useState<ProjectValidation | null>(validation);
   const [notes, setNotes] = useState<Record<string, string>>({
     scamCheck: '',
@@ -95,7 +93,7 @@ export function ManualValidationReview({
     );
   }
 
-  const handleToggleCheck = (field: 'scamCheck' | 'sanctionsCheck' | 'auditCheck', passed: boolean) => {
+  const handleToggleCheck = async (field: 'scamCheck' | 'sanctionsCheck' | 'auditCheck', passed: boolean) => {
     if (!localValidation) return;
     
     // Require notes for any override
@@ -116,96 +114,42 @@ export function ManualValidationReview({
     const isChanging = localValidation[field].passed !== passed;
     
     if (isChanging) {
-      const updatedValidation = applyManualOverride(
-        localValidation,
-        field,
-        passed,
-        notes[field] || undefined,
-        adminId
-      );
-      
-      setLocalValidation(updatedValidation);
-    }
-  };
-
-  const handleSaveChanges = async () => {
-    if (!localValidation) return;
-    
-    // Validate that any changed field has notes
-    const hasErrors = Object.entries(localValidation).some(([key, value]) => {
-      if (['scamCheck', 'sanctionsCheck', 'auditCheck'].includes(key)) {
-        const typedKey = key as 'scamCheck' | 'sanctionsCheck' | 'auditCheck';
-        const originalValue = validation[typedKey];
-        const hasChanged = originalValue.passed !== value.passed;
+      try {
+        const updatedValidation = applyManualOverride(
+          localValidation,
+          field,
+          passed,
+          notes[field],
+          adminId
+        );
         
-        if (hasChanged && (!notes[typedKey] || notes[typedKey].length < 3)) {
-          setErrors(prev => ({
-            ...prev,
-            [typedKey]: 'Please provide at least 3 characters of notes for this change'
-          }));
-          return true;
-        }
+        // Recalculate overall status
+        updatedValidation.overallPassed = updatedValidation.scamCheck.passed && updatedValidation.sanctionsCheck.passed;
+        
+        // Update timestamp and reviewer
+        updatedValidation.manuallyReviewed = true;
+        updatedValidation.reviewedBy = adminId;
+        updatedValidation.reviewedAt = new Date().toISOString();
+        
+        // Save changes
+        await onValidationOverride(updatedValidation);
+        
+        toast({
+          title: "Check Updated",
+          description: `${field.replace('Check', '')} check has been ${passed ? 'approved' : 'rejected'}`,
+          className: passed ? "bg-green-800 border-green-700 text-white" : "bg-red-800 border-red-700 text-white",
+        });
+        
+        // Update local state
+        setLocalValidation(updatedValidation);
+      } catch (error) {
+        console.error(`Error updating ${field}:`, error);
+        toast({
+          title: "Error",
+          description: `Failed to update ${field.replace('Check', '')} check`,
+          variant: "destructive",
+        });
       }
-      return false;
-    });
-    
-    if (hasErrors) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide notes for all changes",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Apply all notes to the validation object
-      const updatedValidation: ProjectValidation = {
-        ...localValidation,
-        scamCheck: {
-          ...localValidation.scamCheck,
-          manualNotes: notes.scamCheck || localValidation.scamCheck.manualNotes
-        },
-        sanctionsCheck: {
-          ...localValidation.sanctionsCheck,
-          manualNotes: notes.sanctionsCheck || localValidation.sanctionsCheck.manualNotes
-        },
-        auditCheck: {
-          ...localValidation.auditCheck,
-          manualNotes: notes.auditCheck || localValidation.auditCheck.manualNotes
-        }
-      };
-      
-      // Recalculate overall status
-      updatedValidation.overallPassed = updatedValidation.scamCheck.passed && updatedValidation.sanctionsCheck.passed;
-      
-      // Update timestamp and reviewer
-      updatedValidation.manuallyReviewed = true;
-      updatedValidation.reviewedBy = adminId;
-      updatedValidation.reviewedAt = new Date().toISOString();
-      
-      // Save changes
-      await onValidationOverride(updatedValidation);
-      
-      toast({
-        title: "Changes Saved",
-        description: "Validation changes have been saved successfully",
-        className: "bg-green-800 border-green-700 text-white",
-      });
-      
-      // Update local state
-      setLocalValidation(updatedValidation);
-    } catch (error) {
-      console.error("Error saving validation changes:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save validation changes",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -268,6 +212,7 @@ export function ManualValidationReview({
                 checked={localValidation.scamCheck.passed}
                 onCheckedChange={(checked) => handleToggleCheck('scamCheck', checked)}
                 id="scam-check"
+                disabled={!localValidation.scamCheck.passed && notes.scamCheck.length < 3}
               />
               <Label htmlFor="scam-check">
                 {localValidation.scamCheck.passed ? "Pass" : "Fail"}
@@ -320,6 +265,7 @@ export function ManualValidationReview({
                 checked={localValidation.sanctionsCheck.passed}
                 onCheckedChange={(checked) => handleToggleCheck('sanctionsCheck', checked)}
                 id="sanctions-check"
+                disabled={!localValidation.sanctionsCheck.passed && notes.sanctionsCheck.length < 3}
               />
               <Label htmlFor="sanctions-check">
                 {localValidation.sanctionsCheck.passed ? "Pass" : "Fail"}
@@ -374,6 +320,7 @@ export function ManualValidationReview({
                 checked={localValidation.auditCheck.passed}
                 onCheckedChange={(checked) => handleToggleCheck('auditCheck', checked)}
                 id="audit-check"
+                disabled={!localValidation.auditCheck.passed && notes.auditCheck.length < 3}
               />
               <Label htmlFor="audit-check">
                 {localValidation.auditCheck.passed ? "Pass" : "Fail"}
@@ -429,16 +376,6 @@ export function ManualValidationReview({
           It will be PASSED only if both these checks are passed.
         </div>
       </CardContent>
-      
-      <CardFooter className="flex justify-end space-x-4 pt-4">
-        <Button
-          variant="default"
-          onClick={handleSaveChanges}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Saving..." : "Save Changes"}
-        </Button>
-      </CardFooter>
     </Card>
   );
 }
