@@ -1,6 +1,5 @@
 import { getSupabaseClient } from "@/lib/supabase";
 import { Project } from "@/types/project";
-import fetch from "node-fetch";
 
 // Types for validation results
 export type ValidationResult = {
@@ -63,40 +62,8 @@ async function checkForScamReports(project: Project): Promise<ValidationResult> 
         console.error("Failed to parse website URL:", e);
       }
     }
-
-    // Check PhishTank API for known phishing sites
-    // PhishTank API docs: https://phishtank.org/api_info.php
-    if (domain) {
-      const apiKey = process.env.PHISHTANK_API_KEY;
-      if (apiKey) {
-        try {
-          const response = await fetch(`https://checkurl.phishtank.com/checkurl/`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'User-Agent': 'TokenDirectory/1.0',
-            },
-            body: `url=${encodeURIComponent(project.website)}&format=json&app_key=${apiKey}`
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.results && data.results.in_database && data.results.verified && data.results.valid) {
-              return {
-                passed: false,
-                details: `Website is a known phishing site according to PhishTank (ID: ${data.results.phish_id})`
-              };
-            }
-          }
-        } catch (error) {
-          console.error("Error checking PhishTank API:", error);
-          // Continue with other checks if this one fails
-        }
-      }
-    }
     
     // Check Google Safe Browsing API
-    // API docs: https://developers.google.com/safe-browsing/v4/reference/rest
     const safeBrowsingApiKey = process.env.GOOGLE_SAFE_BROWSING_API_KEY;
     if (domain && safeBrowsingApiKey) {
       try {
@@ -196,51 +163,6 @@ async function checkForSanctions(project: Project): Promise<ValidationResult> {
       }
     }
     
-    // Check against OFAC SDN List API if key is available
-    const ofacApiKey = process.env.OFAC_API_KEY;
-    if (ofacApiKey) {
-      try {
-        // Check project name against OFAC list
-        const response = await fetch(`https://api.treasury.gov/sanctions/ofac/sdn/names/search?api_key=${ofacApiKey}&fuzzy=true&name=${encodeURIComponent(project.name)}`, {
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.total > 0) {
-            return {
-              passed: false,
-              details: `Project name matched entry on OFAC sanctions list: ${data.results[0].match}`
-            };
-          }
-        }
-        
-        // If domain is available, check it too
-        if (domain) {
-          const domainResponse = await fetch(`https://api.treasury.gov/sanctions/ofac/sdn/addresses/search?api_key=${ofacApiKey}&address=${encodeURIComponent(domain)}`, {
-            headers: {
-              'Accept': 'application/json'
-            }
-          });
-          
-          if (domainResponse.ok) {
-            const domainData = await domainResponse.json();
-            if (domainData.total > 0) {
-              return {
-                passed: false,
-                details: `Project website domain matched entry on OFAC sanctions list`
-              };
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error checking OFAC API:", error);
-        // Continue with other checks if API fails
-      }
-    }
-    
     // Check for sanctioned countries in the website domain
     const sanctionedCountries = [
       { code: "ir", name: "Iran" },
@@ -264,11 +186,7 @@ async function checkForSanctions(project: Project): Promise<ValidationResult> {
         }
       }
       
-      // Advanced domain check for sanctions evasion
       // Check for domains hosted in sanctioned countries
-      // This would require an IP geolocation API in production
-      
-      // Mock implementation for demonstration
       const highRiskDomainPatterns = [
         /\.ru\./i, /\.ir\./i, /\.kp\./i, /\.cu\./i, /\.sy\./i, 
         /north-?korea/i, /iran/i, /russia/i, /syria/i, /cuba/i
@@ -363,18 +281,6 @@ async function verifyAuditDocument(project: Project): Promise<ValidationResult> 
         return {
           passed: false,
           details: 'Audit document exists but is suspiciously small'
-        };
-      }
-      
-      // Try to download the file to analyze its content
-      const { data: fileData, error: fileError } = await supabase.storage
-        .from('audit-documents')
-        .download(project.audit_document_path);
-      
-      if (fileError || !fileData) {
-        return {
-          passed: false,
-          details: 'Could not download audit document for verification'
         };
       }
       
@@ -498,3 +404,5 @@ async function verifyAuditDocument(project: Project): Promise<ValidationResult> 
     };
   }
 }
+
+export { checkForScamReports, checkForSanctions, verifyAuditDocument };

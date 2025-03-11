@@ -8,12 +8,14 @@ import { ProjectValidation } from "@/lib/services/validation-service";
 interface ProjectValidationDetailsProps {
   validation: ProjectValidation | null;
   whitepaper?: string | null;
+  auditUrl?: string | null;
   isLoading?: boolean;
 }
 
 export function ProjectValidationDetails({
   validation,
   whitepaper,
+  auditUrl,
   isLoading = false
 }: ProjectValidationDetailsProps) {
   if (isLoading) {
@@ -46,7 +48,9 @@ export function ProjectValidationDetails({
             <Shield className="h-5 w-5 mr-2 text-amber-500" />
             Project Validation
           </CardTitle>
-          <CardDescription>Automated security and compliance checks</CardDescription>
+          <CardDescription>
+            Automated security and compliance checks
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center py-6">
@@ -144,20 +148,27 @@ export function ProjectValidationDetails({
           </div>
         )}
 
-        {whitepaper && (
-          <>
-            <Separator className="bg-gray-700 my-4" />
-            <div>
-              <h3 className="font-medium mb-2">Project Documentation</h3>
-              <Button asChild variant="outline" size="sm">
-                <a href={whitepaper} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Whitepaper
-                </a>
-              </Button>
-            </div>
-          </>
-        )}
+        <Separator className="bg-gray-700 my-4" />
+
+        <div className="flex flex-col md:flex-row gap-4">
+          {auditUrl && (
+            <Button asChild variant="outline" size="sm">
+              <a href={auditUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Smart Contract Audit
+              </a>
+            </Button>
+          )}
+          
+          {whitepaper && (
+            <Button asChild variant="outline" size="sm">
+              <a href={whitepaper} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View Whitepaper
+              </a>
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

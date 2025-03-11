@@ -1,5 +1,3 @@
-// app/admin/page.tsx
-
 'use client'
 
 import { useState, useEffect } from "react";
@@ -33,7 +31,6 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [adminEmail, setAdminEmail] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     approved: 0,
@@ -56,6 +53,7 @@ export default function AdminPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [whitepaperUrl, setWhitepaperUrl] = useState<string | null>(null);
+  const [auditUrl, setAuditUrl] = useState<string | null>(null);
   
   // For validation
   const [validations, setValidations] = useState<Record<string, ProjectValidation | null>>({});
@@ -72,7 +70,6 @@ export default function AdminPage() {
     projectId: string;
     projectName: string;
     action: string;
-    adminEmail?: string;
     notes?: string;
   }>>([]);
 
@@ -84,7 +81,6 @@ export default function AdminPage() {
       projectId,
       projectName,
       action,
-      adminEmail: adminEmail || 'Unknown', // Use the stored admin email
       notes
     };
     
@@ -174,6 +170,21 @@ export default function AdminPage() {
     setIsDetailsOpen(true);
     setCurrentValidation(null);
     setWhitepaperUrl(null);
+    setAuditUrl(null);
+    
+    // If the project has a whitepaper URL, use it
+    if (project.whitepaper_url) {
+      setWhitepaperUrl(project.whitepaper_url);
+    } else if (project.website) {
+      // Try to get whitepaper URL from project website as a fallback
+      const whitepaper = `${project.website.replace(/\/$/, '')}/whitepaper`;
+      setWhitepaperUrl(whitepaper);
+    }
+    
+    // If the project has an audit URL, use it
+    if (project.audit_url) {
+      setAuditUrl(project.audit_url);
+    }
     
     // If the project has an audit document, get a URL for it
     if (project.audit_document_path) {
@@ -190,14 +201,6 @@ export default function AdminPage() {
       }
     } else {
       setDocumentUrl(null);
-    }
-    
-    // Try to get whitepaper URL from project website
-    if (project.website) {
-      // Simplified approach - in a real implementation, you would 
-      // have more project-specific information or metadata
-      const whitepaper = `${project.website.replace(/\/$/, '')}/whitepaper`;
-      setWhitepaperUrl(whitepaper);
     }
     
     // Try to fetch existing validation results
@@ -337,32 +340,6 @@ export default function AdminPage() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Get the admin email
-        const supabase = getSupabaseClient();
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user?.id) {
-          // Try to get from profiles first
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (profile && profile.email) {
-            setAdminEmail(profile.email);
-            console.log("Admin email set from profile:", profile.email);
-          } else if (session.user.email) {
-            // Fallback to session email
-            setAdminEmail(session.user.email);
-            console.log("Admin email set from session:", session.user.email);
-          } else {
-            console.log("No admin email found in profile or session");
-          }
-        } else {
-          console.log("No active session found");
-        }
-        
         // Load stats
         const statsData = await fetchProjectStats();
         setStats(statsData);
@@ -375,15 +352,16 @@ export default function AdminPage() {
         try {
           const savedLog = localStorage.getItem('adminAuditLog');
           if (savedLog) {
-            const parsedLog = JSON.parse(savedLog);
-            setAuditLog(parsedLog);
-            console.log("Loaded audit log from localStorage:", parsedLog.length, "entries");
+            setAuditLog(JSON.parse(savedLog));
           }
         } catch (error) {
           console.error("Error loading audit log:", error);
         }
         
         // Set up real-time subscription for project changes
+        const supabase = getSupabaseClient();
+        
+        // Subscribe to project table changes
         const subscription = supabase
           .channel('projects-changes')
           .on('postgres_changes', {
@@ -726,6 +704,7 @@ export default function AdminPage() {
         onOpenChange={setIsDetailsOpen}
         documentUrl={documentUrl}
         whitepaperUrl={whitepaperUrl}
+        auditUrl={auditUrl}
         validation={currentValidation}
         isValidating={isValidating}
         isProcessing={isProcessing}

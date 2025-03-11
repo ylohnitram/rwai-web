@@ -1,7 +1,9 @@
-import { File, AlertTriangle, CheckCircle, Shield, Check, X, FileEdit } from "lucide-react"
+import { File, AlertTriangle, CheckCircle, Shield, Check, X, FileEdit, FileText, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
 import { Project } from "@/types/project"
 import { ProjectValidation } from "@/lib/services/validation-service"
 import { ProjectValidationDetails } from "./project-validation-details"
@@ -12,6 +14,7 @@ interface ProjectDetailsDrawerProps {
   onOpenChange: (open: boolean) => void;
   documentUrl: string | null;
   whitepaperUrl: string | null;
+  auditUrl: string | null;
   validation: ProjectValidation | null;
   isValidating: boolean;
   isProcessing: boolean;
@@ -27,6 +30,7 @@ export function ProjectDetailsDrawer({
   onOpenChange, 
   documentUrl,
   whitepaperUrl,
+  auditUrl,
   validation,
   isValidating,
   isProcessing,
@@ -60,6 +64,7 @@ export function ProjectDetailsDrawer({
               <ProjectValidationDetails 
                 validation={validation} 
                 whitepaper={whitepaperUrl}
+                auditUrl={auditUrl}
                 isLoading={isValidating} 
               />
               
@@ -109,11 +114,39 @@ export function ProjectDetailsDrawer({
                       href={project.website} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
+                      className="text-blue-500 hover:underline flex items-center"
                     >
-                      {project.website}
+                      {project.website} <ExternalLink className="h-3 w-3 ml-1" />
                     </a>
                   </div>
+
+                  {project.whitepaper_url && (
+                    <div>
+                      <p className="text-sm text-gray-400">Whitepaper</p>
+                      <a 
+                        href={project.whitepaper_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline flex items-center"
+                      >
+                        View Whitepaper <ExternalLink className="h-3 w-3 ml-1" />
+                      </a>
+                    </div>
+                  )}
+
+                  {auditUrl && (
+                    <div>
+                      <p className="text-sm text-gray-400">Smart Contract Audit</p>
+                      <a 
+                        href={auditUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline flex items-center"
+                      >
+                        View Audit <ExternalLink className="h-3 w-3 ml-1" />
+                      </a>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               
@@ -122,8 +155,8 @@ export function ProjectDetailsDrawer({
                 <Card className="bg-gray-800 border-gray-700">
                   <CardHeader>
                     <div className="flex items-center">
-                      <File className="h-5 w-5 mr-2 text-blue-500" />
-                      <CardTitle>Audit Document</CardTitle>
+                      <FileText className="h-5 w-5 mr-2 text-blue-500" />
+                      <CardTitle>Smart Contract Audit Document</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>

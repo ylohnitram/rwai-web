@@ -22,6 +22,9 @@ export type Project = {
   reviewed_at?: string;
   audit_document_path?: string;
   contact_email?: string;
+
+  audit_url?: string;
+  whitepaper_url?: string;
 };
 
 export type ProjectReview = {
