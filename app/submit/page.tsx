@@ -12,11 +12,10 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import DocumentUpload from "@/components/document-upload"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import ImprovedDocumentUpload from "@/components/improved-document-upload"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -94,11 +93,15 @@ export default function SubmitPage() {
   const handleAuditFileUploaded = (filePath: string, fileUrl: string) => {
     form.setValue("auditDocumentPath", filePath)
     setAuditDocumentUrl(fileUrl)
+    // Clear the URL field when a file is uploaded
+    form.setValue("auditUrl", "")
   }
 
   const handleWhitepaperFileUploaded = (filePath: string, fileUrl: string) => {
     form.setValue("whitepaperDocumentPath", filePath)
     setWhitepaperDocumentUrl(fileUrl)
+    // Clear the URL field when a file is uploaded
+    form.setValue("whitepaperUrl", "")
   }
 
   async function onSubmit(values: FormValues) {
@@ -403,51 +406,68 @@ export default function SubmitPage() {
                     <div className="space-y-4 p-4 border border-gray-800 rounded-lg">
                       <h3 className="font-medium text-lg mb-2">Smart Contract Audit</h3>
                       
+                      {/* Choose between upload or link */}
+                      <div className="flex items-center space-x-4 mb-4">
+                        <div className="text-sm">Provide audit via:</div>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="radio" 
+                            name="auditMethod" 
+                            id="auditUpload" 
+                            checked={!form.watch('auditUrl')}
+                            onChange={() => form.setValue('auditUrl', '')}
+                            className="cursor-pointer"
+                          />
+                          <label htmlFor="auditUpload" className="text-sm cursor-pointer">File Upload</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="radio" 
+                            name="auditMethod" 
+                            id="auditUrl" 
+                            checked={!!form.watch('auditUrl')}
+                            onChange={() => form.setValue('auditDocumentPath', undefined)}
+                            className="cursor-pointer"
+                          />
+                          <label htmlFor="auditUrl" className="text-sm cursor-pointer">External URL</label>
+                        </div>
+                      </div>
+                      
                       {/* Audit Document Upload */}
                       <FormField
                         control={form.control}
                         name="auditDocumentPath"
                         render={() => (
                           <FormItem>
-                            <FormLabel>Upload Audit Document</FormLabel>
-                            <FormControl>
-                              <DocumentUpload
-                                onFileUploaded={handleAuditFileUploaded}
-                                label="Audit Report"
-                                description="Upload your project's security audit or technical review document (PDF recommended)"
-                                bucketName="audit-documents"
-                                filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_audit`}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Providing an audit document from recognized security firms like CertiK, PeckShield, or Hacken will speed up the review process.
-                            </FormDescription>
+                            <ImprovedDocumentUpload
+                              onFileUploaded={handleAuditFileUploaded}
+                              label="Audit Report"
+                              description="Upload your project's security audit or technical review document (PDF recommended)"
+                              bucketName="audit-documents"
+                              filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_audit`}
+                              disabled={!!form.watch('auditUrl')}
+                            />
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
-                      <div className="flex items-center">
-                        <Separator className="flex-grow" />
-                        <span className="mx-2 text-xs text-gray-400">OR</span>
-                        <Separator className="flex-grow" />
-                      </div>
 
                       <FormField
                         control={form.control}
                         name="auditUrl"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Provide Audit URL</FormLabel>
+                            <FormLabel>Audit URL</FormLabel>
                             <FormControl>
                               <Input 
                                 placeholder="https://certik.com/projects/yourproject" 
                                 {...field} 
                                 className="bg-gray-800 border-gray-700"
+                                disabled={!!form.watch('auditDocumentPath')}
                               />
                             </FormControl>
                             <FormDescription>
-                              If you don't have an audit document to upload, you can provide a link to your audit from firms like CertiK, PeckShield, or other recognized security auditors.
+                              If you prefer not to upload a file, you can provide a link to your audit from firms like CertiK, PeckShield, or other recognized security auditors.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -459,51 +479,68 @@ export default function SubmitPage() {
                     <div className="space-y-4 p-4 border border-gray-800 rounded-lg">
                       <h3 className="font-medium text-lg mb-2">Project Whitepaper</h3>
                       
+                      {/* Choose between upload or link */}
+                      <div className="flex items-center space-x-4 mb-4">
+                        <div className="text-sm">Provide whitepaper via:</div>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="radio" 
+                            name="whitepaperMethod" 
+                            id="whitepaperUpload" 
+                            checked={!form.watch('whitepaperUrl')}
+                            onChange={() => form.setValue('whitepaperUrl', '')}
+                            className="cursor-pointer"
+                          />
+                          <label htmlFor="whitepaperUpload" className="text-sm cursor-pointer">File Upload</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="radio" 
+                            name="whitepaperMethod" 
+                            id="whitepaperUrl" 
+                            checked={!!form.watch('whitepaperUrl')}
+                            onChange={() => form.setValue('whitepaperDocumentPath', undefined)}
+                            className="cursor-pointer"
+                          />
+                          <label htmlFor="whitepaperUrl" className="text-sm cursor-pointer">External URL</label>
+                        </div>
+                      </div>
+                      
                       {/* Whitepaper Document Upload */}
                       <FormField
                         control={form.control}
                         name="whitepaperDocumentPath"
                         render={() => (
                           <FormItem>
-                            <FormLabel>Upload Whitepaper Document</FormLabel>
-                            <FormControl>
-                              <DocumentUpload
-                                onFileUploaded={handleWhitepaperFileUploaded}
-                                label="Whitepaper"
-                                description="Upload your project's whitepaper or technical documentation (PDF recommended)"
-                                bucketName="whitepaper-documents"
-                                filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_whitepaper`}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Providing a comprehensive whitepaper helps reviewers understand your project better.
-                            </FormDescription>
+                            <ImprovedDocumentUpload
+                              onFileUploaded={handleWhitepaperFileUploaded}
+                              label="Whitepaper"
+                              description="Upload your project's whitepaper or technical documentation (PDF recommended)"
+                              bucketName="whitepaper-documents"
+                              filePath={`${Date.now()}_${form.getValues('name').replace(/\s+/g, '_')}_whitepaper`}
+                              disabled={!!form.watch('whitepaperUrl')}
+                            />
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
-                      <div className="flex items-center">
-                        <Separator className="flex-grow" />
-                        <span className="mx-2 text-xs text-gray-400">OR</span>
-                        <Separator className="flex-grow" />
-                      </div>
 
                       <FormField
                         control={form.control}
                         name="whitepaperUrl"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Provide Whitepaper URL</FormLabel>
+                            <FormLabel>Whitepaper URL</FormLabel>
                             <FormControl>
                               <Input 
                                 placeholder="https://yourproject.com/whitepaper.pdf" 
                                 {...field} 
                                 className="bg-gray-800 border-gray-700"
+                                disabled={!!form.watch('whitepaperDocumentPath')}
                               />
                             </FormControl>
                             <FormDescription>
-                              If you don't have a whitepaper document to upload, you can provide a link to your whitepaper.
+                              If you prefer not to upload a file, you can provide a link to your whitepaper.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>

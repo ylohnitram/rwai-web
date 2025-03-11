@@ -27,24 +27,53 @@ export async function POST(request: Request) {
       );
     }
     
-    // Ensure the bucket exists (create if it doesn't)
+    // Ensure the bucket exists before attempting to upload
     try {
-      const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+      // List all buckets to check if it exists
+      const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
+      
+      if (listError) {
+        console.error('Error listing buckets:', listError);
+        return NextResponse.json(
+          { error: `Error listing buckets: ${listError.message}` },
+          { status: 500 }
+        );
+      }
+      
       const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
       
+      // If bucket doesn't exist, create it
       if (!bucketExists) {
         console.log(`Creating bucket: ${bucketName}`);
-        const { error: createBucketError } = await supabaseAdmin.storage.createBucket(bucketName, {
-          public: false,
+        
+        // Create the bucket with proper settings
+        const { error: createError } = await supabaseAdmin.storage.createBucket(bucketName, {
+          public: true,
           fileSizeLimit: 10485760, // 10MB
+          allowedMimeTypes: [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          ]
         });
         
-        if (createBucketError) {
-          console.error('Error creating bucket:', createBucketError);
+        if (createError) {
+          console.error('Error creating bucket:', createError);
           return NextResponse.json(
-            { error: `Error creating bucket: ${createBucketError.message}` },
+            { error: `Error creating bucket: ${createError.message}` },
             { status: 500 }
           );
+        }
+        
+        // Set RLS policies for the new bucket
+        try {
+          // Enable public access to the bucket
+          await supabaseAdmin.rpc('set_bucket_public', { bucket_name: bucketName, public_flag: true });
+          
+          console.log(`Bucket ${bucketName} created successfully with public access`);
+        } catch (policyError) {
+          console.error('Error setting bucket policies:', policyError);
+          // Continue anyway - the upload might still work
         }
       }
     } catch (bucketError) {
