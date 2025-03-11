@@ -105,10 +105,28 @@ export function ManualValidationReview({
       
       setLocalValidation(updatedValidation);
       
-      // Save the override
-      await onValidationOverride(updatedValidation);
+      // Save the override using the new API endpoint
+      const response = await fetch('/api/admin/validation-override', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId,
+          validation: updatedValidation
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save validation override');
+      }
+      
+      // Notify parent component about the changes
+      onValidationOverride(updatedValidation);
     } catch (error) {
       console.error("Error applying validation override:", error);
+      // You could add toast notification here
     } finally {
       setIsSubmitting(false);
     }
@@ -120,9 +138,28 @@ export function ManualValidationReview({
     setIsSubmitting(true);
     
     try {
-      await onValidationOverride(localValidation);
+      // Save using the new API endpoint
+      const response = await fetch('/api/admin/validation-override', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId,
+          validation: localValidation
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save validation override');
+      }
+      
+      // Notify parent component about the changes
+      onValidationOverride(localValidation);
     } catch (error) {
       console.error("Error saving validation overrides:", error);
+      // You could add toast notification here
     } finally {
       setIsSubmitting(false);
     }

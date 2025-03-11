@@ -12,7 +12,6 @@ import {
   requestChanges, 
   saveProjectValidation, 
   fetchValidationResults,
-  saveManualValidationOverride // Add this import
 } from "../actions";
 import { Toaster } from "@/components/ui/toaster";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -112,10 +111,20 @@ export default function AdminPage() {
     if (!selectedProject) return;
     
     try {
-      const result = await saveManualValidationOverride(selectedProject.id, validation);
+      const response = await fetch('/api/admin/validation-override', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId: selectedProject.id,
+          validation
+        }),
+      });
       
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to save validation override');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save validation override');
       }
       
       // Update current validation
@@ -792,8 +801,8 @@ export default function AdminPage() {
         onApprove={handleApproveProject}
         onRequestChanges={openRequestChangesDialog}
         onReject={handleRejectProject}
-        onValidationOverride={handleValidationOverride} // Add this
-        adminId={adminId} // Add this
+        onValidationOverride={handleValidationOverride}
+        adminId={adminId}
       />
 
       {/* Request Changes Dialog */}
