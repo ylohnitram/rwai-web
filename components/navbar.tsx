@@ -103,13 +103,6 @@ export default function Navbar({ isAdmin = false }: NavbarProps) {
               Blog
             </Link>
             <Link
-              href="/edit"
-              className={`text-sm font-medium ${pathname.startsWith("/edit") ? "text-white" : "text-gray-400 hover:text-white"} transition-colors`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Edit Project
-            </Link>
-            <Link
               href="/submit"
               className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
               onClick={() => setIsMenuOpen(false)}
