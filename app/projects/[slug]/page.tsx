@@ -1,4 +1,3 @@
-// app/projects/[slug]/page.tsx
 import Link from "next/link"
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Globe, BarChart4, LandPlot, Database, ShieldCheck, Calendar, Clock, AlertTriangle } from "lucide-react"
 import type { Metadata } from "next"
