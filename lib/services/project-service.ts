@@ -393,6 +393,31 @@ export async function getProjectDistribution(): Promise<{
   return { byBlockchain, byAssetType };
 }
 
+export async function getProjectsByType(type: string, limit: number = 3, excludeId?: string): Promise<Project[]> {
+  const supabase = getSupabaseClient();
+  
+  let query = supabase
+    .from("projects")
+    .select("*")
+    .eq("status", "approved")
+    .eq("type", type)
+    .limit(limit);
+    
+  // Exclude the current project if ID is provided
+  if (excludeId) {
+    query = query.neq("id", excludeId);
+  }
+  
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching projects by type:", error);
+    return [];
+  }
+
+  return data as Project[];
+}
+
 export async function getProjectsByFilters(
   assetType?: string,
   blockchain?: string,

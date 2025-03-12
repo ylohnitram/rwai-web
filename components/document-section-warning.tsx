@@ -1,16 +1,20 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, FileText, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function DocumentSectionWarning() {
   return (
-    <Alert className="bg-red-900/30 border-red-800 mb-6">
-      <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
-      <AlertTitle className="text-red-500">Document Disclaimer</AlertTitle>
-      <AlertDescription className="text-red-200">
-        The documents in this section are provided by third parties and have not been verified by us. 
-        They may contain inaccuracies or violate local regulations. By downloading, 
-        you acknowledge these risks.
-      </AlertDescription>
+    <Alert className="bg-blue-900/20 border-blue-800/50 mb-6 flex items-start">
+      <AlertTriangle className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
+      <div>
+        <AlertTitle className="flex items-center text-blue-400">
+          <FileText className="h-4 w-4 mr-1" />
+          Document Disclaimer
+        </AlertTitle>
+        <AlertDescription className="text-blue-200">
+          The following documents are provided by the project team and verified by our security process.
+          While we've performed basic checks, you should review them carefully before making investment decisions.
+        </AlertDescription>
+      </div>
     </Alert>
   );
 }
