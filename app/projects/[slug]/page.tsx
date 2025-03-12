@@ -15,6 +15,7 @@ import RelatedProjects from "@/components/related-projects"
 import ProjectAssessmentSection from "@/components/project-assessment-section";
 import { getProjectBySlug, getProjects, getProjectsByType } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
+import { formatTVL } from "@/lib/utils"
 
 interface ProjectPageProps {
   params: {
@@ -175,7 +176,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       <Database className="h-5 w-5 text-blue-500" />
                     </div>
                     <div>
-                      <p className="font-medium">{project.tvl} TVL</p>
+                      <p className="font-medium">{formatTVL(project.tvl)}</p>
                       <p className="text-sm text-gray-400">Total Value Locked</p>
                     </div>
                   </div>
