@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card"
 import { getBlogPostBySlug, getBlogPosts } from "@/lib/services/blog-service"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { BlogPostSchema, BreadcrumbSchema } from "@/components/seo/structured-data"
 
 interface BlogPostPageProps {
   params: {
@@ -31,15 +32,34 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     }
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://rwa-directory.vercel.app";
+  const postUrl = `${baseUrl}/blog/${post.slug}`;
+
   return {
     title: `${post.title} | TokenDirectory by RWA Investors`,
     description: post.excerpt,
+    authors: [{ name: post.author }],
+    keywords: [...post.tags, "RWA", "tokenization", "blockchain", "investment"],
+    alternates: {
+      canonical: postUrl
+    },
     openGraph: {
       title: post.title,
       description: post.excerpt,
       type: 'article',
+      url: postUrl,
+      images: [`/api/og?title=${encodeURIComponent(post.title)}`],
       authors: [post.author],
       publishedTime: new Date(post.date).toISOString(),
+      siteName: "TokenDirectory by RWA Investors",
+      tags: post.tags,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.excerpt,
+      images: [`/api/og?title=${encodeURIComponent(post.title)}`],
+      creator: '@rwainvestors',
     },
   }
 }
@@ -51,9 +71,21 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound();
   }
 
+  // Generate breadcrumb items for structured data
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://rwa-directory.vercel.app";
+  const breadcrumbItems = [
+    { name: "Home", url: baseUrl },
+    { name: "Blog", url: `${baseUrl}/blog` },
+    { name: post.title, url: `${baseUrl}/blog/${post.slug}` }
+  ];
+
   return (
     <div className="container py-8 px-4 md:px-6">
       <div className="mx-auto max-w-3xl">
+        {/* Add structured data */}
+        <BlogPostSchema post={post} />
+        <BreadcrumbSchema items={breadcrumbItems} />
+
         <div className="mb-8">
           <Button asChild variant="outline" size="sm">
             <Link href="/blog">
@@ -77,37 +109,39 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <div className="flex items-center gap-4 mt-4 text-gray-400">
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-1" />
-              {new Date(post.date).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+              <time dateTime={post.date}>
+                {new Date(post.date).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </time>
             </div>
             <div className="flex items-center">
               <User className="h-4 w-4 mr-1" />
-              {post.author}
+              <span itemProp="author">{post.author}</span>
             </div>
           </div>
         </div>
 
         <Card className="p-8 bg-gray-900 border-gray-800">
-          <div className="prose prose-invert max-w-none">
+          <article className="prose prose-invert max-w-none">
             {post.content.split("\n\n").map((paragraph, i) => {
               if (paragraph.startsWith("# ")) {
                 return (
-                  <h1 key={i} className="text-3xl font-bold mt-8 mb-4">
+                  <h1 key={i} className="text-3xl font-bold mt-8 mb-4" id={`heading-${i}`}>
                     {paragraph.substring(2)}
                   </h1>
                 )
               } else if (paragraph.startsWith("## ")) {
                 return (
-                  <h2 key={i} className="text-2xl font-bold mt-6 mb-3">
+                  <h2 key={i} className="text-2xl font-bold mt-6 mb-3" id={`heading-${i}`}>
                     {paragraph.substring(3)}
                   </h2>
                 )
               } else if (paragraph.startsWith("### ")) {
                 return (
-                  <h3 key={i} className="text-xl font-bold mt-5 mb-2">
+                  <h3 key={i} className="text-xl font-bold mt-5 mb-2" id={`heading-${i}`}>
                     {paragraph.substring(4)}
                   </h3>
                 )
@@ -174,7 +208,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 )
               }
             })}
-          </div>
+          </article>
         </Card>
 
         {/* Comments section */}
@@ -185,6 +219,42 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               <p className="text-gray-400 mb-4">Comments are powered by Disqus</p>
               <Button variant="outline">Load Comments</Button>
             </div>
+          </div>
+        </div>
+
+        {/* Related posts or share buttons section */}
+        <div className="mt-8">
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Button asChild variant="outline" size="sm">
+              <a 
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(`${baseUrl}/blog/${post.slug}`)}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                aria-label="Share on Twitter"
+              >
+                Share on Twitter
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a 
+                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`${baseUrl}/blog/${post.slug}`)}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                aria-label="Share on LinkedIn"
+              >
+                Share on LinkedIn
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a 
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${baseUrl}/blog/${post.slug}`)}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                aria-label="Share on Facebook"
+              >
+                Share on Facebook
+              </a>
+            </Button>
           </div>
         </div>
       </div>
