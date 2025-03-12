@@ -13,7 +13,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { Project } from "@/types/project"
 import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText, Blockchain } from "lucide-react"
-import { BlockchainIcon } from "@/components/icons/blockchain-icon";
+import { BlockchainIcon } from "@/components/icons/blockchain-icon"
+import { formatTVL } from "@/lib/utils"
 
 interface DirectoryPageProps {
   searchParams: {
@@ -177,7 +178,7 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
                         <TableCell>
                           <div className="flex items-center">
                             <Database className="h-4 w-4 mr-1 text-blue-400" />
-                            {project.tvl}
+                            {formatTVL(project.tvl)}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -237,7 +238,7 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
                             </div>
                             <div className="flex flex-col items-center p-2 bg-gray-800 rounded-md">
                               <span className="text-xs text-gray-400 mb-1">TVL</span>
-                              <span className="text-sm font-medium">{project.tvl}</span>
+                              <span className="text-sm font-medium">{formatTVL(project.tvl)}</span>
                             </div>
                           </div>
                           

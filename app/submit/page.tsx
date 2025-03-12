@@ -332,7 +332,7 @@ export default function SubmitPage() {
                                 className="bg-gray-800 border-gray-700" 
                               />
                             </FormControl>
-                            <FormDescription>Current total value of assets</FormDescription>
+                            <FormDescription>Current total value of assets in USD (e.g., $10M for $10 million)</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}

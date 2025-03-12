@@ -2,7 +2,9 @@
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Database } from "lucide-react"
 import Link from "next/link"
+import { formatTVL } from "@/lib/utils"
 
 interface ProjectCardProps {
   name: string
@@ -10,9 +12,10 @@ interface ProjectCardProps {
   blockchain: string
   roi: number
   id: string
+  tvl: string
 }
 
-export default function ProjectCard({ name, type, blockchain, roi, id }: ProjectCardProps) {
+export default function ProjectCard({ name, type, blockchain, roi, id, tvl }: ProjectCardProps) {
   // Generate slug from project name
   const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
   
@@ -34,6 +37,13 @@ export default function ProjectCard({ name, type, blockchain, roi, id }: Project
             <div>
               <p className="text-xs font-medium text-gray-400">Blockchain</p>
               <p className="text-sm">{blockchain}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-400">TVL</p>
+              <div className="flex items-center">
+                <Database className="h-4 w-4 mr-1 text-blue-400" />
+                <p className="text-sm">{formatTVL(tvl)}</p>
+              </div>
             </div>
           </div>
         </CardContent>

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Globe, BarChart4, LandPlot, Database, ShieldCheck, Calendar, Clock, AlertTriangle } from "lucide-react"
 import type { Metadata } from "next"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
-
+import { formatTVL } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,7 +15,7 @@ import ProjectDescriptionCard from "@/components/project-description-card"
 import RelatedProjects from "@/components/related-projects"
 import { getProjectBySlug, getProjects, getProjectsByType } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
-import InvestmentDisclaimer from "@/components/investment-disclaimer";
+import InvestmentDisclaimer from "@/components/investment-disclaimer"
 
 interface ProjectPageProps {
   params: {
@@ -319,7 +319,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                     <Database className="h-5 w-5 mr-3 text-purple-500" />
                     <span className="text-gray-400">Total Value Locked</span>
                   </div>
-                  <span className="text-lg font-bold">{project.tvl}</span>
+                  <span className="text-lg font-bold">{formatTVL(project.tvl)}</span>
                 </div>
                 
                 <div className="flex items-center justify-between p-3 rounded-md bg-gray-800/50">
