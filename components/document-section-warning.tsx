@@ -1,10 +1,10 @@
-import { AlertTriangle, FileText, Info } from "lucide-react";
+import { Info, FileText } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function DocumentSectionWarning() {
   return (
     <Alert className="bg-blue-900/20 border-blue-800/50 mb-6 flex items-start">
-      <AlertTriangle className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
+      <Info className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
       <div>
         <AlertTitle className="flex items-center text-blue-400">
           <FileText className="h-4 w-4 mr-1" />
