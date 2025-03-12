@@ -30,24 +30,32 @@ export default function Breadcrumbs() {
 
   return (
     <nav className="flex items-center text-sm text-gray-400 mb-6" aria-label="Breadcrumb">
-      <ol className="flex items-center space-x-2">
-        <li>
-          <Link href="/" className="hover:text-white transition-colors flex items-center">
+      <ol className="flex items-center space-x-2" itemScope itemType="https://schema.org/BreadcrumbList">
+        <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+          <Link href="/" className="hover:text-white transition-colors flex items-center" itemProp="item">
             <Home className="h-4 w-4" />
-            <span className="sr-only">Home</span>
+            <span className="sr-only" itemProp="name">Home</span>
+            <meta itemProp="position" content="1" />
           </Link>
         </li>
 
         {breadcrumbs.map((breadcrumb, index) => (
-          <li key={breadcrumb.href} className="flex items-center">
+          <li 
+            key={breadcrumb.href} 
+            className="flex items-center"
+            itemProp="itemListElement" 
+            itemScope 
+            itemType="https://schema.org/ListItem"
+          >
             <ChevronRight className="h-4 w-4 mx-1" />
             {index === breadcrumbs.length - 1 ? (
-              <span className="text-white font-medium">{breadcrumb.label}</span>
+              <span className="text-white font-medium" itemProp="name">{breadcrumb.label}</span>
             ) : (
-              <Link href={breadcrumb.href} className="hover:text-white transition-colors">
-                {breadcrumb.label}
+              <Link href={breadcrumb.href} className="hover:text-white transition-colors" itemProp="item">
+                <span itemProp="name">{breadcrumb.label}</span>
               </Link>
             )}
+            <meta itemProp="position" content={(index + 2).toString()} />
           </li>
         ))}
       </ol>

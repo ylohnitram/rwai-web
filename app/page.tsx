@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowRight, BarChart3, Layers, Shield, ChevronDown } from "lucide-react"
+import { WebsiteSchema, OrganizationSchema } from "@/components/seo/structured-data"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +19,10 @@ export default async function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0F172A] text-white">
+      {/* Add structured data */}
+      <WebsiteSchema />
+      <OrganizationSchema />
+      
       {/* Hero Section */}
       <section className="w-full py-20 md:py-32 lg:py-48 relative flex items-center justify-center">
         <div className="container px-4 md:px-6 relative z-10">
@@ -133,6 +138,7 @@ export default async function Home() {
                 blockchain={project.blockchain}
                 roi={project.roi}
                 id={project.id}
+                tvl={project.tvl}
               />
             ))}
           </div>

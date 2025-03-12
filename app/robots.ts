@@ -8,9 +8,11 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: isProduction ? "/" : [],
-      disallow: isProduction ? [] : ["/"],
+      disallow: isProduction 
+        ? ["/admin/", "/api/", "/login", "/setup", "/edit"] 
+        : ["/"],
     },
     sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl,
   }
 }
-
