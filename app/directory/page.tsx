@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { Project } from "@/types/project"
 import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText, Blockchain } from "lucide-react"
-import { Blockchain } from "@/components/icons/blockchain-icon";
+import { BlockchainIcon } from "@/components/icons/blockchain-icon";
 
 interface DirectoryPageProps {
   searchParams: {

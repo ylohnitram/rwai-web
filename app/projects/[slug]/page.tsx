@@ -1,7 +1,7 @@
-import { Blockchain } from "@/components/icons/blockchain-icon";
 import Link from "next/link"
-import { ArrowLeft, CheckCircle, ExternalLink, FileText, Globe, Blockchain, BarChart4, LandPlot, Database, ShieldCheck, Calendar, Clock, AlertTriangle } from "lucide-react"
+import { ArrowLeft, CheckCircle, ExternalLink, FileText, Globe, BarChart4, LandPlot, Database, ShieldCheck, Calendar, Clock, AlertTriangle } from "lucide-react"
 import type { Metadata } from "next"
+import { BlockchainIcon } from "@/components/icons/blockchain-icon"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -154,7 +154,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-start">
                     <div className="p-2 rounded-full bg-amber-500/10 mr-3">
-                      <Blockchain className="h-5 w-5 text-amber-500" />
+                      <BlockchainIcon className="h-5 w-5 text-amber-500" />
                     </div>
                     <div>
                       <p className="font-medium">{project.blockchain} Network</p>
@@ -296,7 +296,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 
                 <div className="flex items-center justify-between p-3 rounded-md bg-gray-800/50">
                   <div className="flex items-center">
-                    <Blockchain className="h-5 w-5 mr-3 text-green-500" />
+                    <BlockchainIcon className="h-5 w-5 mr-3 text-green-500" />
                     <span className="text-gray-400">Blockchain</span>
                   </div>
                   <Badge variant="outline" className="font-medium">{project.blockchain}</Badge>

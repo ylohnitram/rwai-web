@@ -1,6 +1,6 @@
 import { LucideProps } from "lucide-react";
 
-export function Blockchain(props: LucideProps) {
+export function BlockchainIcon(props: LucideProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
