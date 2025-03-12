@@ -10,6 +10,7 @@ import Breadcrumbs from "@/components/breadcrumbs"
 import ProjectSecuritySummary from "@/components/project-security-summary"
 import AuditDocumentViewer from "@/components/audit-document-viewer"
 import DocumentSectionWarning from "@/components/document-section-warning"
+import ProjectDescriptionCard from "@/components/project-description-card"
 import { getProjectBySlug, getProjects } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
 
@@ -100,14 +101,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
-          <Card className="bg-gray-900 border-gray-800">
-            <CardHeader>
-              <CardTitle>Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300">{project.description}</p>
-            </CardContent>
-          </Card>
+          {/* Using the new description card with text overflow fixed */}
+          <ProjectDescriptionCard description={project.description} />
 
           {/* Documents Section */}
           {(project.audit_document_path || project.audit_url || project.whitepaper_document_path || project.whitepaper_url) && (
@@ -248,5 +243,5 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }
