@@ -15,7 +15,6 @@ import RelatedProjects from "@/components/related-projects"
 import ProjectAssessmentSection from "@/components/project-assessment-section";
 import { getProjectBySlug, getProjects, getProjectsByType } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
-import { formatTVL } from "@/lib/utils"
 
 interface ProjectPageProps {
   params: {
