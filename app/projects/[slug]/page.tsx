@@ -1,3 +1,4 @@
+// app/projects/[slug]/page.tsx
 import Link from "next/link"
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Globe, BarChart4, LandPlot, Database, ShieldCheck, Calendar, Clock, AlertTriangle } from "lucide-react"
 import type { Metadata } from "next"
@@ -12,9 +13,10 @@ import AuditDocumentViewer from "@/components/audit-document-viewer"
 import DocumentSectionWarning from "@/components/document-section-warning"
 import ProjectDescriptionCard from "@/components/project-description-card"
 import RelatedProjects from "@/components/related-projects"
-import ProjectAssessmentSection from "@/components/project-assessment-section";
+import ProjectAssessmentSection from "@/components/project-assessment-section"
 import { getProjectBySlug, getProjects, getProjectsByType } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
+import { ProjectSchema, BreadcrumbSchema } from "@/components/seo/structured-data"
 
 interface ProjectPageProps {
   params: {
@@ -45,14 +47,30 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
     }
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://rwa-directory.vercel.app";
+  const projectUrl = `${baseUrl}/projects/${params.slug}`;
+
   return {
     title: `${project.name} | TokenDirectory by RWA Investors`,
     description: project.description.substring(0, 160),
+    authors: [{ name: "RWA Investors" }],
+    keywords: [project.name, project.type, "tokenized assets", "RWA", project.blockchain, "investment"],
+    alternates: {
+      canonical: projectUrl,
+    },
     openGraph: {
       images: [`/api/og?title=${encodeURIComponent(project.name)}`],
       type: "website",
       title: `${project.name} | TokenDirectory by RWA Investors`,
       description: project.description.substring(0, 160),
+      url: projectUrl,
+      siteName: "TokenDirectory by RWA Investors",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${project.name} | TokenDirectory by RWA Investors`,
+      description: project.description.substring(0, 160),
+      images: [`/api/og?title=${encodeURIComponent(project.name)}`],
     },
   }
 }
@@ -79,9 +97,21 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       day: 'numeric'
     }) : 'Unknown';
 
+  // Generate breadcrumb items for structured data
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://rwa-directory.vercel.app";
+  const breadcrumbItems = [
+    { name: "Home", url: baseUrl },
+    { name: "Directory", url: `${baseUrl}/directory` },
+    { name: project.name, url: `${baseUrl}/projects/${params.slug}` }
+  ];
+
   return (
     <div className="container py-8 px-4 md:px-6">
       <Breadcrumbs />
+      
+      {/* Add structured data */}
+      <ProjectSchema project={project} />
+      <BreadcrumbSchema items={breadcrumbItems} />
       
       {/* Project Header with Visual Badge */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
