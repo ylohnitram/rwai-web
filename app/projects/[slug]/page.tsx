@@ -8,14 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import Breadcrumbs from "@/components/breadcrumbs"
-import ProjectSecuritySummary from "@/components/project-security-summary"
 import AuditDocumentViewer from "@/components/audit-document-viewer"
 import DocumentSectionWarning from "@/components/document-section-warning"
 import ProjectDescriptionCard from "@/components/project-description-card"
 import RelatedProjects from "@/components/related-projects"
+import ProjectAssessmentSection from "@/components/project-assessment-section";
 import { getProjectBySlug, getProjects, getProjectsByType } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
-import InvestmentDisclaimer from "@/components/investment-disclaimer"
 
 interface ProjectPageProps {
   params: {
@@ -121,15 +120,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       </div>
 
       {/* Simplified Security Summary with updated styling */}
-      <>
-        <ProjectSecuritySummary
+      <ProjectAssessmentSection
           scamReports={0}
           sanctionDetected={false}
           auditVerified={auditVerified}
           riskLevel={riskLevel as any}
-        />
-        <InvestmentDisclaimer />
-      </>
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content Area - 2/3 width on desktop */}
