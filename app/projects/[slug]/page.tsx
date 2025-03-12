@@ -15,6 +15,7 @@ import ProjectDescriptionCard from "@/components/project-description-card"
 import RelatedProjects from "@/components/related-projects"
 import { getProjectBySlug, getProjects, getProjectsByType } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
+import InvestmentDisclaimer from "@/components/investment-disclaimer";
 
 interface ProjectPageProps {
   params: {
@@ -120,12 +121,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       </div>
 
       {/* Simplified Security Summary with updated styling */}
-      <ProjectSecuritySummary
-        scamReports={0}
-        sanctionDetected={false}
-        auditVerified={auditVerified}
-        riskLevel={riskLevel as any}
-      />
+      <>
+        <ProjectSecuritySummary
+          scamReports={0}
+          sanctionDetected={false}
+          auditVerified={auditVerified}
+          riskLevel={riskLevel as any}
+        />
+        <InvestmentDisclaimer />
+      </>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content Area - 2/3 width on desktop */}
