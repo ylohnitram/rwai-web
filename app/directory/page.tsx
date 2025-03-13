@@ -6,15 +6,74 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import DirectoryFilters from "@/components/directory-filters"
-import Pagination from "@/components/pagination"
 import Breadcrumbs from "@/components/breadcrumbs"
 import LegalDisclaimer from "@/components/legal-disclaimer"
 import { Card, CardContent } from "@/components/ui/card"
 import { useEffect, useState, Suspense, useCallback } from "react"
 import { Project } from "@/types/project"
-import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText } from "lucide-react"
+import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText, ChevronLeft, ChevronRight } from "lucide-react"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
 import { formatTVL } from "@/lib/utils"
+
+// Implement pagination directly in the component to avoid any issues with re-rendering
+function CustomPagination({ totalPages, currentPage, onPageChange }: { 
+  totalPages: number, 
+  currentPage: number, 
+  onPageChange: (page: number) => void 
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="text-sm text-gray-400">
+        Page {currentPage} of {totalPages}
+      </div>
+      <div className="flex items-center space-x-2">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          disabled={currentPage <= 1}
+          onClick={() => onPageChange(currentPage - 1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+
+        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+          // Show max 5 page buttons
+          let pageNumber = currentPage
+          if (currentPage < 3) {
+            pageNumber = i + 1
+          } else if (currentPage > totalPages - 2) {
+            pageNumber = totalPages - 4 + i
+          } else {
+            pageNumber = currentPage - 2 + i
+          }
+
+          if (pageNumber > 0 && pageNumber <= totalPages) {
+            return (
+              <Button 
+                key={pageNumber} 
+                variant={currentPage === pageNumber ? "default" : "outline"} 
+                size="icon"
+                onClick={() => onPageChange(pageNumber)}
+              >
+                {pageNumber}
+              </Button>
+            )
+          }
+          return null
+        })}
+
+        <Button 
+          variant="outline" 
+          size="icon" 
+          disabled={currentPage >= totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 // Create a separate component for the directory content that uses useSearchParams
 function DirectoryContent() {
@@ -23,65 +82,91 @@ function DirectoryContent() {
   const [currentProjects, setCurrentProjects] = useState<Project[]>([])
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState(Number.parseInt(searchParams.get("page") || "1"))
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
-  const assetType = searchParams.get("assetType") || ""
-  const blockchain = searchParams.get("blockchain") || ""
-  const minRoi = searchParams.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi")) : undefined
-  const maxRoi = searchParams.get("maxRoi") ? Number.parseFloat(searchParams.get("maxRoi")) : undefined
-
-  const projectsPerPage = 10
+  // Get filters from URL but don't make them control the component directly
+  const urlAssetType = searchParams?.get("assetType") || ""
+  const urlBlockchain = searchParams?.get("blockchain") || ""
+  const urlMinRoi = searchParams?.get("minRoi") ? Number.parseFloat(searchParams?.get("minRoi") || "0") : 0
+  const urlMaxRoi = searchParams?.get("maxRoi") ? Number.parseFloat(searchParams?.get("maxRoi") || "30") : 30
   
-  // Update URL when page changes
+  // Store filters in state
+  const [filters, setFilters] = useState({
+    assetType: urlAssetType,
+    blockchain: urlBlockchain,
+    minRoi: urlMinRoi,
+    maxRoi: urlMaxRoi,
+    page: Number.parseInt(searchParams?.get("page") || "1")
+  })
+  
+  // Initialize from URL params on first load
+  useEffect(() => {
+    setFilters({
+      assetType: urlAssetType,
+      blockchain: urlBlockchain,
+      minRoi: urlMinRoi,
+      maxRoi: urlMaxRoi,
+      page: Number.parseInt(searchParams?.get("page") || "1")
+    })
+    setCurrentPage(Number.parseInt(searchParams?.get("page") || "1"))
+  }, [])
+
+  // Handle page change without relying on URL changes
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page)
+    setFilters(prev => ({ ...prev, page }))
     
-    const params = new URLSearchParams(searchParams.toString())
+    // Manually fetch new data with the updated page
+    fetchProjects(page, filters.assetType, filters.blockchain, filters.minRoi, filters.maxRoi)
+    
+    // Update URL but don't rely on it for state
+    const params = new URLSearchParams(searchParams?.toString() || "")
     params.set("page", page.toString())
     
-    // Use shallow routing to prevent full page reload
-    router.push(`/directory?${params.toString()}`, { scroll: false })
-  }, [router, searchParams])
+    // Use replace instead of push to avoid adding to history
+    window.history.replaceState({}, "", `/directory?${params.toString()}`)
+  }, [filters, searchParams])
   
-  useEffect(() => {
-    // Update the current page when the URL changes
-    const urlPage = Number.parseInt(searchParams.get("page") || "1")
-    if (urlPage !== currentPage) {
-      setCurrentPage(urlPage)
+  // Function to fetch projects (extracted to be reusable)
+  const fetchProjects = async (
+    page: number, 
+    assetType: string, 
+    blockchain: string, 
+    minRoi?: number,
+    maxRoi?: number
+  ) => {
+    setIsLoading(true)
+    try {
+      // Fetch projects from API
+      const params = new URLSearchParams()
+      params.set('page', page.toString())
+      if (assetType) params.set('assetType', assetType)
+      if (blockchain) params.set('blockchain', blockchain)
+      if (minRoi !== undefined) params.set('minRoi', minRoi.toString())
+      if (maxRoi !== undefined) params.set('maxRoi', maxRoi.toString())
+      
+      const response = await fetch(`/api/projects?${params.toString()}`)
+      const data = await response.json()
+      
+      setCurrentProjects(data.data || [])
+      setTotalProjects(data.meta?.total || 0)
+      setTotalPages(Math.ceil((data.meta?.total || 0) / 10))
+    } catch (error) {
+      console.error("Error fetching projects:", error)
+      setCurrentProjects([])
+      setTotalProjects(0)
+      setTotalPages(1)
+    } finally {
+      setIsLoading(false)
     }
-  }, [searchParams, currentPage])
+  }
   
+  // Fetch projects when filters change
   useEffect(() => {
-    async function fetchProjects() {
-      setIsLoading(true)
-      try {
-        // Fetch projects from API
-        const params = new URLSearchParams()
-        params.set('page', currentPage.toString())
-        if (assetType) params.set('assetType', assetType)
-        if (blockchain) params.set('blockchain', blockchain)
-        if (minRoi !== undefined) params.set('minRoi', minRoi.toString())
-        if (maxRoi !== undefined) params.set('maxRoi', maxRoi.toString())
-        
-        const response = await fetch(`/api/projects?${params.toString()}`)
-        const data = await response.json()
-        
-        setCurrentProjects(data.data || [])
-        setTotalProjects(data.meta?.total || 0)
-      } catch (error) {
-        console.error("Error fetching projects:", error)
-        setCurrentProjects([])
-        setTotalProjects(0)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    fetchProjects()
-  }, [currentPage, assetType, blockchain, minRoi, maxRoi])
+    fetchProjects(filters.page, filters.assetType, filters.blockchain, filters.minRoi, filters.maxRoi)
+  }, [filters])
   
-  const totalPages = Math.ceil(totalProjects / projectsPerPage)
-
   // Function to generate slug from project name
   function generateSlug(name: string): string {
     return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -294,10 +379,10 @@ function DirectoryContent() {
         </>
       )}
 
-      {/* Pagination */}
+      {/* Pagination - implemented directly in this component */}
       {totalProjects > 0 && (
         <div className="mt-6">
-          <Pagination 
+          <CustomPagination 
             totalPages={totalPages} 
             currentPage={currentPage}
             onPageChange={handlePageChange}
