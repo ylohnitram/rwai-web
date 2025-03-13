@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, FileText, BarChart3, Files, Clock, Globe } from "lucide-react";
 import { AssetTypeIcon } from "@/components/icons/asset-type-icon";
 import { getSupabaseClient } from "@/lib/supabase";
+import { Badge } from "@/components/ui/badge";
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState({
