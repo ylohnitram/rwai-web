@@ -1,4 +1,3 @@
-// components/admin/project-details-drawer.tsx
 import { File, AlertTriangle, CheckCircle, Shield, Check, X, FileEdit, FileText, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -65,7 +64,7 @@ export function ProjectDetailsDrawer({
     (validation.auditCheck.passed || (validation.manuallyReviewed && validation.overallPassed));
 
   return (
-    <Drawer open={isOpen} onOpenChange={setIsOpen}>
+    <Drawer open={isOpen} onOpenChange={onOpenChange}>
       <DrawerContent className="bg-gray-900 border-gray-800 max-h-[90vh]">
         <DrawerHeader>
           <DrawerTitle className="text-xl">Project Review: {project?.name}</DrawerTitle>
@@ -351,4 +350,4 @@ export function ProjectDetailsDrawer({
       </DrawerContent>
     </Drawer>
   )
-} 
+}
