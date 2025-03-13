@@ -63,4 +63,3 @@ export default function Pagination({ totalPages }: PaginationProps) {
     </div>
   )
 }
-

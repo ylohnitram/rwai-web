@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -16,27 +16,18 @@ import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText } 
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
 import { formatTVL } from "@/lib/utils"
 
-export default function DirectoryPage({ 
-  searchParams 
-}: { 
-  searchParams?: {
-    page?: string;
-    assetType?: string;
-    blockchain?: string;
-    minRoi?: string;
-    maxRoi?: string;
-  }
-}) {
+export default function DirectoryPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentProjects, setCurrentProjects] = useState<Project[]>([])
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
-  const page = Number.parseInt(searchParams?.page || "1")
-  const assetType = searchParams?.assetType || ""
-  const blockchain = searchParams?.blockchain || ""
-  const minRoi = searchParams?.minRoi ? Number.parseFloat(searchParams.minRoi) : undefined
-  const maxRoi = searchParams?.maxRoi ? Number.parseFloat(searchParams.maxRoi) : undefined
+  const page = Number.parseInt(searchParams.get("page") || "1")
+  const assetType = searchParams.get("assetType") || ""
+  const blockchain = searchParams.get("blockchain") || ""
+  const minRoi = searchParams.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi")) : undefined
+  const maxRoi = searchParams.get("maxRoi") ? Number.parseFloat(searchParams.get("maxRoi")) : undefined
 
   const projectsPerPage = 10
   
@@ -67,7 +58,7 @@ export default function DirectoryPage({
     }
     
     fetchProjects()
-  }, [page, assetType, blockchain, minRoi, maxRoi])
+  }, [page, assetType, blockchain, minRoi, maxRoi, searchParams]) // Add searchParams to dependencies
   
   const totalPages = Math.ceil(totalProjects / projectsPerPage)
 
