@@ -23,6 +23,8 @@ interface ProjectPageProps {
   }
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function generateStaticParams() {
   // Fetch all approved projects for static generation
   const { data: projects } = await getProjects({ status: 'approved', limit: 100 })
