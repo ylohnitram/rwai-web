@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ImprovedDocumentUpload from "@/components/improved-document-upload"
+import AssetTypeSelector from "@/components/asset-type-selector"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -262,18 +263,10 @@ export default function SubmitPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Asset Type *</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="bg-gray-800 border-gray-700">
-                                  <SelectValue placeholder="Select asset type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="bg-gray-800 border-gray-700">
-                                <SelectItem value="Real Estate">Real Estate</SelectItem>
-                                <SelectItem value="Art">Art</SelectItem>
-                                <SelectItem value="Commodities">Commodities</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <AssetTypeSelector
+                              value={field.value}
+                              onValueChange={field.onChange}
+                            />
                             <FormMessage />
                           </FormItem>
                         )}

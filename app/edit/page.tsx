@@ -441,28 +441,22 @@ function EditProjectContent() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
-                      control={editForm.control}
+                      control={form.control}
                       name="type"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Asset Type *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="bg-gray-800 border-gray-700">
-                                <SelectValue placeholder="Select asset type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent className="bg-gray-800 border-gray-700">
-                              <SelectItem value="Real Estate">Real Estate</SelectItem>
-                              <SelectItem value="Art">Art</SelectItem>
-                              <SelectItem value="Commodities">Commodities</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
+                          <AssetTypeSelector
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={isSubmitting}
+                            className="bg-gray-800 border-gray-700"
+                          />
+                          <FormDescription>Select the type of asset being tokenized</FormDescription>
+                        <FormMessage />
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={editForm.control}
                       name="blockchain"

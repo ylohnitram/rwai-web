@@ -3,6 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Filter } from "lucide-react"
+import { AssetType } from "@/lib/services/asset-type-service"
 
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +20,28 @@ export default function DirectoryFilters() {
     Number.parseFloat(searchParams.get("minRoi") || "0"),
     Number.parseFloat(searchParams.get("maxRoi") || "30"),
   ])
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch asset types from the API
+  useEffect(() => {
+    async function loadAssetTypes() {
+      try {
+        const response = await fetch('/api/asset-types')
+        const data = await response.json()
+        
+        if (data.success) {
+          setAssetTypes(data.data)
+        }
+      } catch (error) {
+        console.error("Error loading asset types:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadAssetTypes()
+  }, [])
 
   // Apply filters
   const applyFilters = () => {
@@ -64,16 +87,16 @@ export default function DirectoryFilters() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium">Asset Type</label>
-            <Select value={assetType} onValueChange={setAssetType}>
+            <Select value={assetType} onValueChange={setAssetType} disabled={isLoading}>
               <SelectTrigger className="bg-gray-800 border-gray-700">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
                 <SelectGroup>
                   <SelectItem value="all-types">All Types</SelectItem>
-                  <SelectItem value="Real Estate">Real Estate</SelectItem>
-                  <SelectItem value="Art">Art</SelectItem>
-                  <SelectItem value="Commodities">Commodities</SelectItem>
+                  {assetTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -105,4 +128,3 @@ export default function DirectoryFilters() {
     </Card>
   )
 }
-
