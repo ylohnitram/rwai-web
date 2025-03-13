@@ -1,5 +1,7 @@
+// lib/utils.ts
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { getSupabaseClient } from "@/lib/supabase"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -45,4 +47,32 @@ export function formatTVL(tvl: string | number): string {
   } else {
     return `$${numValue.toFixed(0)}`;
   }
+}
+
+/**
+ * Gets all unique asset types from projects in the database
+ * Useful for backwards compatibility during migration
+ * @returns Array of unique asset types
+ */
+export async function getUniqueAssetTypes(): Promise<string[]> {
+  const supabase = getSupabaseClient();
+  
+  const { data, error } = await supabase
+    .from("projects")
+    .select("type");
+    
+  if (error) {
+    console.error("Error fetching project types:", error);
+    return [];
+  }
+  
+  // Extract unique types
+  const typeSet = new Set<string>();
+  data.forEach(project => {
+    if (project.type) {
+      typeSet.add(project.type);
+    }
+  });
+  
+  return Array.from(typeSet).sort();
 }

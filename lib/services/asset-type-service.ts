@@ -29,6 +29,32 @@ export async function getAssetTypes(): Promise<AssetType[]> {
 }
 
 /**
+ * Gets a single asset type by ID
+ * @param id The ID of the asset type
+ * @returns The asset type or null if not found
+ */
+export async function getAssetTypeById(id: number): Promise<AssetType | null> {
+  const supabase = getSupabaseClient();
+  
+  const { data, error } = await supabase
+    .from("asset_types")
+    .select("*")
+    .eq("id", id)
+    .single();
+    
+  if (error) {
+    if (error.code === "PGRST116") {
+      // Record not found
+      return null;
+    }
+    console.error("Error fetching asset type:", error);
+    throw new Error(`Error fetching asset type: ${error.message}`);
+  }
+  
+  return data as AssetType;
+}
+
+/**
  * Creates a new asset type
  * @param name The name of the asset type
  * @param description Description of the asset type
@@ -92,4 +118,35 @@ export async function deleteAssetType(id: number): Promise<boolean> {
   const supabase = getSupabaseClient();
   
   const { error } = await supabase
-    .from("a
+    .from("asset_types")
+    .delete()
+    .eq("id", id);
+    
+  if (error) {
+    console.error("Error deleting asset type:", error);
+    throw new Error(`Error deleting asset type: ${error.message}`);
+  }
+  
+  return true;
+}
+
+/**
+ * Checks if an asset type with the given name already exists
+ * @param name The name to check
+ * @returns True if the asset type exists, false otherwise
+ */
+export async function assetTypeExists(name: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  
+  const { count, error } = await supabase
+    .from("asset_types")
+    .select("*", { count: "exact", head: true })
+    .ilike("name", name);
+    
+  if (error) {
+    console.error("Error checking if asset type exists:", error);
+    throw new Error(`Error checking if asset type exists: ${error.message}`);
+  }
+  
+  return (count || 0) > 0;
+}
