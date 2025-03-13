@@ -1,9 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "nextjs",
   "crons": [
     {
       "path": "/api/cron/revalidate-sitemap?cron_secret=$CRON_SECRET",
