@@ -61,13 +61,13 @@ export function ProjectValidationDetails({
     )
   }
 
-  const { scamCheck, sanctionsCheck, auditCheck, riskLevel, overallPassed } = validation;
+  const { scamCheck, sanctionsCheck, auditCheck, riskLevel, overallPassed, manuallyReviewed } = validation;
 
   // Determine the warning message based on which checks failed
   let warningMessage = "";
   if (!scamCheck.passed || !sanctionsCheck.passed) {
     warningMessage = "This project has failed critical validation checks and should be rejected.";
-  } else if (!auditCheck.passed) {
+  } else if (!auditCheck.passed && !manuallyReviewed) {
     warningMessage = "This project requires manual verification of the audit document before approval.";
   }
 
@@ -79,17 +79,22 @@ export function ProjectValidationDetails({
             <Shield className="h-5 w-5 mr-2 text-amber-500" />
             Project Validation
           </CardTitle>
-          <Badge
-            className={
-              riskLevel === 'low'
-                ? 'bg-green-600'
-                : riskLevel === 'medium'
-                ? 'bg-yellow-600'
-                : 'bg-red-600'
-            }
-          >
-            {riskLevel.toUpperCase()} RISK
-          </Badge>
+          <div className="flex items-center gap-2">
+            {manuallyReviewed && (
+              <Badge className="bg-blue-600">MANUALLY REVIEWED</Badge>
+            )}
+            <Badge
+              className={
+                riskLevel === 'low'
+                  ? 'bg-green-600'
+                  : riskLevel === 'medium'
+                  ? 'bg-yellow-600'
+                  : 'bg-red-600'
+              }
+            >
+              {riskLevel.toUpperCase()} RISK
+            </Badge>
+          </div>
         </div>
         <CardDescription>Automated security and compliance checks</CardDescription>
       </CardHeader>
@@ -108,6 +113,9 @@ export function ProjectValidationDetails({
               <p className="text-sm text-gray-400">
                 {scamCheck.details || (scamCheck.passed ? 'No matches found' : 'Scam indicators detected')}
               </p>
+              {scamCheck.manualOverride && (
+                <Badge className="mt-1 text-xs bg-blue-600/20 text-blue-400 border border-blue-500">Manually Verified</Badge>
+              )}
             </div>
           </div>
 
@@ -124,6 +132,9 @@ export function ProjectValidationDetails({
               <p className="text-sm text-gray-400">
                 {sanctionsCheck.details || (sanctionsCheck.passed ? 'No sanctions detected' : 'Sanctions detected')}
               </p>
+              {sanctionsCheck.manualOverride && (
+                <Badge className="mt-1 text-xs bg-blue-600/20 text-blue-400 border border-blue-500">Manually Verified</Badge>
+              )}
             </div>
           </div>
 
@@ -144,14 +155,25 @@ export function ProjectValidationDetails({
               <p className="text-sm text-gray-400">
                 {auditCheck.details || (auditCheck.passed ? 'Verified' : 'Manual verification required')}
               </p>
+              {auditCheck.manualOverride && (
+                <Badge className="mt-1 text-xs bg-blue-600/20 text-blue-400 border border-blue-500">Manually Verified</Badge>
+              )}
             </div>
           </div>
         </div>
 
-        {warningMessage && (
+        {warningMessage && !manuallyReviewed && (
           <Alert className={!scamCheck.passed || !sanctionsCheck.passed ? "bg-red-900/20 border-red-700" : "bg-yellow-900/20 border-yellow-700"}>
             <AlertDescription className={!scamCheck.passed || !sanctionsCheck.passed ? "text-red-300" : "text-yellow-300"}>
               {warningMessage}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {manuallyReviewed && validation.overallPassed && !auditCheck.passed && (
+          <Alert className="bg-blue-900/20 border-blue-700">
+            <AlertDescription className="text-blue-300">
+              This project has been manually approved despite failing audit validation. An admin has verified this project.
             </AlertDescription>
           </Alert>
         )}

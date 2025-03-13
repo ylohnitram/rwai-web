@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 interface ManualValidationReviewProps {
@@ -127,7 +128,11 @@ export function ManualValidationReview({
         );
         
         // Recalculate overall status
-        updatedValidation.overallPassed = updatedValidation.scamCheck.passed && updatedValidation.sanctionsCheck.passed;
+        // For audit check overrides, we don't automatically change the overall status
+        // This allows admins to approve projects even without a passed audit
+        if (field !== 'auditCheck') {
+          updatedValidation.overallPassed = updatedValidation.scamCheck.passed && updatedValidation.sanctionsCheck.passed;
+        }
         
         // Update timestamp and reviewer
         updatedValidation.manuallyReviewed = true;
@@ -155,6 +160,47 @@ export function ManualValidationReview({
       } finally {
         setIsSaving(false);
       }
+    }
+  };
+  
+  // New function to force approve a project despite failing audit checks
+  const handleForceApprove = async () => {
+    if (!localValidation) return;
+    
+    try {
+      setIsSaving(true);
+      
+      // Clone the validation
+      const updatedValidation = { ...localValidation };
+      
+      // Mark as manually reviewed and set override
+      updatedValidation.manuallyReviewed = true;
+      updatedValidation.reviewedBy = adminId;
+      updatedValidation.reviewedAt = new Date().toISOString();
+      
+      // Force overall status to passed regardless of audit check
+      updatedValidation.overallPassed = true;
+      
+      // Save changes
+      await onValidationOverride(updatedValidation);
+      
+      toast({
+        title: "Validation Override",
+        description: "Project has been manually approved despite failing audit check",
+        className: "bg-blue-800 border-blue-700 text-white",
+      });
+      
+      // Update local state
+      setLocalValidation(updatedValidation);
+    } catch (error) {
+      console.error('Error in force approve:', error);
+      toast({
+        title: "Error",
+        description: "Failed to apply validation override",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -351,7 +397,7 @@ export function ManualValidationReview({
 
         <Separator className="bg-gray-700 my-6" />
         
-        {/* Overall Assessment */}
+        {/* Overall Assessment with Force Approve Button */}
         <Alert className={
           localValidation.overallPassed 
             ? "bg-green-900/30 border-green-700" 
@@ -364,21 +410,49 @@ export function ManualValidationReview({
             )}
           </AlertTitle>
           <AlertDescription>
-            Project validation status: <span className="font-bold">
-              {localValidation.overallPassed ? "PASSED" : "FAILED"}
-            </span>
-            
-            {localValidation.manuallyReviewed && localValidation.reviewedAt && (
-              <div className="mt-2 text-sm opacity-70">
-                Reviewed {new Date(localValidation.reviewedAt).toLocaleString()}
+            <div className="flex flex-col sm:flex-row justify-between items-center">
+              <div>
+                Project validation status: <span className="font-bold">
+                  {localValidation.overallPassed ? "PASSED" : "FAILED"}
+                </span>
+                
+                {localValidation.manuallyReviewed && localValidation.reviewedAt && (
+                  <div className="mt-2 text-sm opacity-70">
+                    Reviewed {new Date(localValidation.reviewedAt).toLocaleString()}
+                  </div>
+                )}
               </div>
-            )}
+              
+              {/* Force Approve Button */}
+              {!localValidation.overallPassed && (
+                <Button 
+                  onClick={handleForceApprove}
+                  variant="outline"
+                  className="mt-3 sm:mt-0 border-blue-600 text-blue-500 hover:bg-blue-900/20 hover:text-blue-400"
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Force Approve Project
+                </Button>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
 
         <div className="text-sm italic text-gray-400">
-          Note: Overall status is automatically determined based on scam and sanctions checks. 
-          It will be PASSED only if both these checks are passed.
+          <p>
+            Overall status is usually determined based on scam and sanctions checks, and will 
+            be PASSED only if both these checks are passed.
+          </p>
+          <p className="mt-2">
+            <strong>Admin Override:</strong> You can force approve a project despite failing audit checks 
+            by clicking the "Force Approve Project" button. This should be used with caution and only after 
+            manual verification.
+          </p>
         </div>
       </CardContent>
     </Card>

@@ -30,6 +30,15 @@ export function PendingProjectsTable({
     const validation = validations[projectId];
     if (!validation) return null;
     
+    // If manually reviewed, show that badge
+    if (validation.manuallyReviewed) {
+      return (
+        <Badge className="bg-blue-600 ml-1">
+          <Check className="h-3 w-3 mr-1" /> REVIEWED
+        </Badge>
+      );
+    }
+    
     const { riskLevel, overallPassed } = validation;
     
     if (!overallPassed) {
@@ -62,7 +71,24 @@ export function PendingProjectsTable({
     
     // If validation exists and it fails critical checks, disable approval
     const validation = validations[projectId];
-    if (validation && !validation.overallPassed) return true;
+    
+    // No validation yet
+    if (!validation) return false;
+    
+    // Has critical failures (scam or sanctions)
+    if (!validation.scamCheck.passed || !validation.sanctionsCheck.passed) {
+      return true;
+    }
+    
+    // Manual override allows approval even with failed audit
+    if (validation.manuallyReviewed && validation.overallPassed) {
+      return false;
+    }
+    
+    // If audit check failed and no manual override, disable approval
+    if (!validation.auditCheck.passed) {
+      return true;
+    }
     
     return false;
   };

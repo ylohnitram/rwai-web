@@ -1,3 +1,4 @@
+// components/admin/project-details-drawer.tsx
 import { File, AlertTriangle, CheckCircle, Shield, Check, X, FileEdit, FileText, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -48,18 +49,23 @@ export function ProjectDetailsDrawer({
 }: ProjectDetailsDrawerProps) {
   // Determine action button states based on validation
   const hasCriticalFailure = validation && (!validation.scamCheck.passed || !validation.sanctionsCheck.passed);
-  const requiresAuditVerification = validation && !validation.auditCheck.passed && !validation.auditCheck.manualOverride;
   
-  // Only allow approval if:
+  // Only require manual review for audit verification if it failed
+  const requiresAuditVerification = validation && 
+    !validation.auditCheck.passed && 
+    !validation.manuallyReviewed;
+
+  // Allow approval if:
   // 1. No critical failures exist (scam and sanctions checks passed)
-  // 2. Either audit check is passed OR it has been manually reviewed and approved
+  // 2. Either audit check is passed OR the validation has been manually reviewed
+  // 3. Overall validation is marked as passed (which can happen via manual override)
   const canApprove = validation && 
     validation.scamCheck.passed && 
     validation.sanctionsCheck.passed && 
-    (validation.auditCheck.passed || (validation.auditCheck.manualOverride && validation.auditCheck.passed));
+    (validation.auditCheck.passed || (validation.manuallyReviewed && validation.overallPassed));
 
   return (
-    <Drawer open={isOpen} onOpenChange={onOpenChange}>
+    <Drawer open={isOpen} onOpenChange={setIsOpen}>
       <DrawerContent className="bg-gray-900 border-gray-800 max-h-[90vh]">
         <DrawerHeader>
           <DrawerTitle className="text-xl">Project Review: {project?.name}</DrawerTitle>
@@ -334,7 +340,7 @@ export function ProjectDetailsDrawer({
                     onApprove(project.id);
                     onOpenChange(false);
                   }}
-                  disabled={isProcessing || hasCriticalFailure || requiresAuditVerification || !canApprove}
+                  disabled={isProcessing || hasCriticalFailure || (requiresAuditVerification && !validation?.overallPassed)}
                 >
                   <Check className="h-4 w-4 mr-1" /> Approve
                 </Button>
@@ -345,4 +351,4 @@ export function ProjectDetailsDrawer({
       </DrawerContent>
     </Drawer>
   )
-}
+} 
