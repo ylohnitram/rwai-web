@@ -68,7 +68,7 @@ export function PendingProjectsTable({
   };
 
   return (
-    <Card className="bg-gray-900 border-gray-800">
+    <Card className="bg-gray-900 border-gray-800 mb-8">
       <CardHeader>
         <CardTitle>Pending Projects</CardTitle>
         <CardDescription>Review and approve new project submissions</CardDescription>

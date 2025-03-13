@@ -37,6 +37,7 @@ export function ManualValidationReview({
     sanctionsCheck: '',
     auditCheck: ''
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   // When external validation changes, update local state
   useEffect(() => {
@@ -115,6 +116,8 @@ export function ManualValidationReview({
     
     if (isChanging) {
       try {
+        setIsSaving(true);
+        
         const updatedValidation = applyManualOverride(
           localValidation,
           field,
@@ -149,6 +152,8 @@ export function ManualValidationReview({
           description: `Failed to update ${field.replace('Check', '')} check`,
           variant: "destructive",
         });
+      } finally {
+        setIsSaving(false);
       }
     }
   };
@@ -212,7 +217,7 @@ export function ManualValidationReview({
                 checked={localValidation.scamCheck.passed}
                 onCheckedChange={(checked) => handleToggleCheck('scamCheck', checked)}
                 id="scam-check"
-                disabled={!localValidation.scamCheck.passed && notes.scamCheck.length < 3}
+                disabled={isSaving || (!localValidation.scamCheck.passed && notes.scamCheck.length < 3)}
               />
               <Label htmlFor="scam-check">
                 {localValidation.scamCheck.passed ? "Pass" : "Fail"}
@@ -265,7 +270,7 @@ export function ManualValidationReview({
                 checked={localValidation.sanctionsCheck.passed}
                 onCheckedChange={(checked) => handleToggleCheck('sanctionsCheck', checked)}
                 id="sanctions-check"
-                disabled={!localValidation.sanctionsCheck.passed && notes.sanctionsCheck.length < 3}
+                disabled={isSaving || (!localValidation.sanctionsCheck.passed && notes.sanctionsCheck.length < 3)}
               />
               <Label htmlFor="sanctions-check">
                 {localValidation.sanctionsCheck.passed ? "Pass" : "Fail"}
@@ -320,7 +325,7 @@ export function ManualValidationReview({
                 checked={localValidation.auditCheck.passed}
                 onCheckedChange={(checked) => handleToggleCheck('auditCheck', checked)}
                 id="audit-check"
-                disabled={!localValidation.auditCheck.passed && notes.auditCheck.length < 3}
+                disabled={isSaving || (!localValidation.auditCheck.passed && notes.auditCheck.length < 3)}
               />
               <Label htmlFor="audit-check">
                 {localValidation.auditCheck.passed ? "Pass" : "Fail"}
