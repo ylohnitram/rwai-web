@@ -10,14 +10,19 @@ interface ProjectAssessmentSectionProps {
   sanctionDetected?: boolean;
   auditVerified?: boolean;
   riskLevel?: "low" | "medium" | "high";
+  validationData?: any; // Add validation data
 }
 
 export default function ProjectAssessmentSection({
   scamReports = 0,
   sanctionDetected = false,
   auditVerified = false,
-  riskLevel = "medium"
+  riskLevel = "medium",
+  validationData = null
 }: ProjectAssessmentSectionProps) {
+  // Check for manual review info
+  const manuallyReviewed = validationData?.manuallyReviewed || false;
+  
   // Get risk level styles
   const getRiskStyles = () => {
     switch(riskLevel) {
@@ -55,8 +60,8 @@ export default function ProjectAssessmentSection({
             {styles.icon}
             Project Security Assessment
           </CardTitle>
-          <Badge className={styles.badgeBg}>
-            {styles.badgeText}
+          <Badge className={manuallyReviewed ? "bg-blue-600" : styles.badgeBg}>
+            {manuallyReviewed ? "MANUALLY VERIFIED" : styles.badgeText}
           </Badge>
         </div>
       </CardHeader>
@@ -103,8 +108,10 @@ export default function ProjectAssessmentSection({
             <div>
               <h3 className="text-sm font-medium text-blue-400 mb-1">Important Information</h3>
               <p className="text-sm text-gray-300">
-                This is an automated assessment based on our security processes. While this project has passed our basic checks, 
-                always conduct your own research and due diligence before investing.
+                {manuallyReviewed ? 
+                  "This project has been manually reviewed by our team. While it has passed our verification process, always conduct your own research before investing." :
+                  "This is an automated assessment based on our security processes. While this project has passed our basic checks, always conduct your own research and due diligence before investing."
+                }
               </p>
               <div className="mt-2 flex items-center">
                 <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />

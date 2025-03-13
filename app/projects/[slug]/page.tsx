@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, CheckCircle, ExternalLink, FileText, Globe, BarChart4, LandPlot, Database, ShieldCheck, Calendar, Clock, AlertTriangle } from "lucide-react"
+import { ArrowLeft, CheckCircle, ExternalLink, FileText, Globe, BarChart4, LandPlot, Database, ShieldCheck, Calendar, Clock, AlertTriangle, XCircle } from "lucide-react"
 import type { Metadata } from "next"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
 import { formatTVL } from "@/lib/utils"
@@ -16,6 +16,7 @@ import ProjectAssessmentSection from "@/components/project-assessment-section"
 import { getProjectBySlug, getProjects, getProjectsByType } from "@/lib/services/project-service"
 import { notFound } from "next/navigation"
 import { ProjectSchema, BreadcrumbSchema } from "@/components/seo/structured-data"
+import { createClient } from '@supabase/supabase-js';
 
 interface ProjectPageProps {
   params: {
@@ -38,6 +39,18 @@ export async function generateStaticParams() {
 function generateSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
+
+// Create a Supabase client with service role for server-side usage
+const supabaseServer = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
   const project = await getProjectBySlug(params.slug)
@@ -76,6 +89,51 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
   }
 }
 
+async function fetchProjectValidation(projectId: string) {
+  try {
+    // Fetch validation results directly from the database
+    const { data, error } = await supabaseServer
+      .from("validation_results")
+      .select("*")
+      .eq("project_id", projectId)
+      .single();
+    
+    if (error || !data) {
+      return null;
+    }
+    
+    // Transform to the expected validation format
+    return {
+      scamCheck: {
+        passed: data.scam_check_passed,
+        details: data.scam_check_details,
+        manualOverride: data.scam_check_override || false,
+        manualNotes: data.scam_check_notes
+      },
+      sanctionsCheck: {
+        passed: data.sanctions_check_passed,
+        details: data.sanctions_check_details,
+        manualOverride: data.sanctions_check_override || false,
+        manualNotes: data.sanctions_check_notes
+      },
+      auditCheck: {
+        passed: data.audit_check_passed,
+        details: data.audit_check_details,
+        manualOverride: data.audit_check_override || false,
+        manualNotes: data.audit_check_notes
+      },
+      riskLevel: data.risk_level,
+      overallPassed: data.overall_passed,
+      manuallyReviewed: data.manually_reviewed || false,
+      reviewedBy: data.reviewer_id,
+      reviewedAt: data.reviewed_at
+    };
+  } catch (error) {
+    console.error('Error fetching validation:', error);
+    return null;
+  }
+}
+
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const project = await getProjectBySlug(params.slug)
 
@@ -83,10 +141,26 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     notFound()
   }
 
-  // Determine audit status and risk level based on project information
-  const hasAudit = Boolean(project.audit_url || project.audit_document_path);
-  const auditVerified = hasAudit;
-  const riskLevel = hasAudit ? "low" : "medium";
+  // Fetch validation results from the database
+  const validationData = await fetchProjectValidation(project.id);
+
+  // Determine audit status and risk level based on validation or fallback to project information
+  let hasAudit = Boolean(project.audit_url || project.audit_document_path);
+  let auditVerified = hasAudit;
+  let sanctionDetected = false;
+  let scamReports = 0;
+  let riskLevel: "low" | "medium" | "high" = "medium";
+  
+  // If we have validation data, use it to determine status
+  if (validationData) {
+    auditVerified = validationData.auditCheck.passed;
+    sanctionDetected = !validationData.sanctionsCheck.passed;
+    scamReports = validationData.scamCheck.passed ? 0 : 1;
+    riskLevel = validationData.riskLevel as "low" | "medium" | "high";
+  } else {
+    // Fallback to old logic
+    riskLevel = hasAudit ? "low" : "medium";
+  }
   
   // Get related projects of the same type
   const relatedProjects = await getProjectsByType(project.type, 3, project.id);
@@ -153,10 +227,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
       {/* Simplified Security Summary with updated styling */}
       <ProjectAssessmentSection
-          scamReports={0}
-          sanctionDetected={false}
+          scamReports={scamReports}
+          sanctionDetected={sanctionDetected}
           auditVerified={auditVerified}
-          riskLevel={riskLevel as any}
+          riskLevel={riskLevel}
+          validationData={validationData}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -250,6 +325,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       <p className="text-sm text-gray-400 mb-4">
                         Technical verification of the project's security and code quality.
                       </p>
+                      <div className="flex justify-between items-center mb-3">
+                        <Badge className={auditVerified ? "bg-green-600" : "bg-yellow-600"}>
+                          {auditVerified ? "Verified" : "Unverified"}
+                        </Badge>
+                      </div>
                       <Button asChild className="w-full">
                         <a 
                           href={project.audit_url || `/api/documents/audit/${project.id}`}
@@ -381,18 +461,28 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center justify-between p-2 rounded bg-gray-800/50">
                     <span className="text-sm flex items-center">
-                      <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                      {scamReports === 0 ? 
+                        <CheckCircle className="h-3 w-3 text-green-500 mr-1" /> : 
+                        <XCircle className="h-3 w-3 text-red-500 mr-1" />
+                      }
                       Scam Reports
                     </span>
-                    <span className="text-green-500 font-medium">None Found</span>
+                    <span className={scamReports === 0 ? "text-green-500 font-medium" : "text-red-500 font-medium"}>
+                      {scamReports === 0 ? "None Found" : `${scamReports} Found`}
+                    </span>
                   </div>
                   
                   <div className="flex items-center justify-between p-2 rounded bg-gray-800/50">
                     <span className="text-sm flex items-center">
-                      <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                      {!sanctionDetected ? 
+                        <CheckCircle className="h-3 w-3 text-green-500 mr-1" /> : 
+                        <XCircle className="h-3 w-3 text-red-500 mr-1" />
+                      }
                       Sanctions Check
                     </span>
-                    <span className="text-green-500 font-medium">Passed</span>
+                    <span className={!sanctionDetected ? "text-green-500 font-medium" : "text-red-500 font-medium"}>
+                      {!sanctionDetected ? "Passed" : "Failed"}
+                    </span>
                   </div>
                   
                   <div className="flex items-center justify-between p-2 rounded bg-gray-800/50">
@@ -404,7 +494,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       Audit Status
                     </span>
                     <span className={auditVerified ? "text-green-500 font-medium" : "text-amber-500 font-medium"}>
-                      {auditVerified ? "Verified" : "Self-Reported"}
+                      {auditVerified ? "Verified" : "Unverified"}
                     </span>
                   </div>
                 </div>

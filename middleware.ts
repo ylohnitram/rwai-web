@@ -151,5 +151,7 @@ export const config = {
     "/admin/:path*",
     "/api/admin/:path*",
     "/setup", 
+    // Exclude validation API
+    "/((?!api/validation))"
   ],
 }
