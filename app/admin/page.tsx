@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, FileText, BarChart3, Files, Clock } from "lucide-react";
+import { PlusCircle, FileText, BarChart3, Files, Clock, Globe } from "lucide-react";
 import { AssetTypeIcon } from "@/components/icons/asset-type-icon";
 import { getSupabaseClient } from "@/lib/supabase";
 
@@ -14,6 +14,7 @@ export default function AdminDashboardPage() {
     pendingProjects: 0,
     approvedProjects: 0,
     assetTypes: 0,
+    networks: 0,
     changesRequested: 0
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -38,10 +39,11 @@ export default function AdminDashboardPage() {
           supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "changes_requested")
         ]);
         
-        // Count asset types
-        const { count: assetTypesCount } = await supabase
-          .from("asset_types")
-          .select("*", { count: "exact", head: true });
+        // Count asset types and networks
+        const [{ count: assetTypesCount }, { count: networksCount }] = await Promise.all([
+          supabase.from("asset_types").select("*", { count: "exact", head: true }),
+          supabase.from("networks").select("*", { count: "exact", head: true })
+        ]);
         
         // Fetch recent activities
         const { data: activities } = await supabase
@@ -55,6 +57,7 @@ export default function AdminDashboardPage() {
           pendingProjects: pendingCount || 0,
           approvedProjects: approvedCount || 0,
           assetTypes: assetTypesCount || 0,
+          networks: networksCount || 0,
           changesRequested: changesRequestedCount || 0
         });
         
@@ -90,7 +93,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Project Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
         <Link href="/admin/projects" className="block">
           <Card className="bg-gray-900 border-gray-800 transition-colors hover:border-amber-500/50">
             <CardContent className="p-6">
@@ -170,13 +173,32 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
         </Link>
+        
+        <Link href="/admin/networks" className="block">
+          <Card className="bg-gray-900 border-gray-800 transition-colors hover:border-amber-500/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium flex items-center">
+                  <Globe className="h-5 w-5 mr-2 text-green-500" />
+                  Networks
+                </h3>
+              </div>
+              <div className="text-4xl font-bold">{isLoading ? "..." : stats.networks}</div>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-gray-400">
+                  Blockchain platforms
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Quick Actions */}
       <Card className="bg-gray-900 border-gray-800 mb-8">
         <CardContent className="p-6">
           <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <Link href="/admin/projects">
               <Button variant="outline" className="w-full h-auto py-4 justify-center flex-col items-center">
                 <FileText className="h-10 w-10 mb-2" />
@@ -188,6 +210,13 @@ export default function AdminDashboardPage() {
               <Button variant="outline" className="w-full h-auto py-4 justify-center flex-col items-center">
                 <AssetTypeIcon className="h-10 w-10 mb-2" />
                 <span>Manage Asset Types</span>
+              </Button>
+            </Link>
+            
+            <Link href="/admin/networks">
+              <Button variant="outline" className="w-full h-auto py-4 justify-center flex-col items-center">
+                <Globe className="h-10 w-10 mb-2" />
+                <span>Manage Networks</span>
               </Button>
             </Link>
             

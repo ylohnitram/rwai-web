@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
   FileText, 
-  Users, 
   Settings, 
   BarChart3, 
   Mail,
-  Layers
+  Layers,
+  Globe
 } from "lucide-react";
 import { AssetTypeIcon } from "@/components/icons/asset-type-icon";
 
@@ -38,9 +38,9 @@ export default function AdminSidebar() {
       text: "Asset Types"
     },
     {
-      href: "/admin/users",
-      icon: <Users className="h-5 w-5" />,
-      text: "Users"
+      href: "/admin/networks",
+      icon: <Globe className="h-5 w-5" />,
+      text: "Networks"
     },
     {
       href: "/admin/analytics",
