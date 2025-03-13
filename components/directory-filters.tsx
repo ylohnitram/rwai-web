@@ -1,7 +1,8 @@
+"use client"
+
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Filter } from "lucide-react"
-import { AssetType } from "@/lib/services/asset-type-service"
 
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,16 +14,18 @@ export default function DirectoryFilters() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const [assetType, setAssetType] = useState<string>(searchParams.get("assetType") || "all-types")
-  const [blockchain, setBlockchain] = useState<string>(searchParams.get("blockchain") || "all-blockchains")
+  const [assetType, setAssetType] = useState<string>(searchParams?.get("assetType") || "all-types")
+  const [blockchain, setBlockchain] = useState<string>(searchParams?.get("blockchain") || "all-blockchains")
   const [roiRange, setRoiRange] = useState<number[]>([
-    Number.parseFloat(searchParams.get("minRoi") || "0"),
-    Number.parseFloat(searchParams.get("maxRoi") || "30"),
+    Number.parseFloat(searchParams?.get("minRoi") || "0"),
+    Number.parseFloat(searchParams?.get("maxRoi") || "30"),
   ])
 
   // Apply filters
   const applyFilters = () => {
-    const params = new URLSearchParams(searchParams)
+    if (!searchParams) return;
+    
+    const params = new URLSearchParams(searchParams.toString())
 
     // Reset to page 1 when filters change
     params.set("page", "1")
@@ -48,8 +51,10 @@ export default function DirectoryFilters() {
 
   // Apply filters when component mounts
   useEffect(() => {
-    applyFilters()
-  }, [assetType, blockchain, roiRange])
+    if (searchParams) {
+      applyFilters()
+    }
+  }, [assetType, blockchain, roiRange, searchParams, pathname, router])
 
   return (
     <Card className="mb-8 bg-gray-900 border-gray-800">

@@ -12,31 +12,31 @@ import LegalDisclaimer from "@/components/legal-disclaimer"
 import { Card, CardContent } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { Project } from "@/types/project"
-import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText, Blockchain } from "lucide-react"
+import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText } from "lucide-react"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
 import { formatTVL } from "@/lib/utils"
 
-interface DirectoryPageProps {
-  searchParams: {
-    page?: string
-    assetType?: string
-    blockchain?: string
-    minRoi?: string
-    maxRoi?: string
+export default function DirectoryPage({ 
+  searchParams 
+}: { 
+  searchParams?: {
+    page?: string;
+    assetType?: string;
+    blockchain?: string;
+    minRoi?: string;
+    maxRoi?: string;
   }
-}
-
-export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
+}) {
   const router = useRouter()
   const [currentProjects, setCurrentProjects] = useState<Project[]>([])
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
 
-  const page = Number.parseInt(searchParams.page || "1")
-  const assetType = searchParams.assetType || ""
-  const blockchain = searchParams.blockchain || ""
-  const minRoi = searchParams.minRoi ? Number.parseFloat(searchParams.minRoi) : undefined
-  const maxRoi = searchParams.maxRoi ? Number.parseFloat(searchParams.maxRoi) : undefined
+  const page = Number.parseInt(searchParams?.page || "1")
+  const assetType = searchParams?.assetType || ""
+  const blockchain = searchParams?.blockchain || ""
+  const minRoi = searchParams?.minRoi ? Number.parseFloat(searchParams.minRoi) : undefined
+  const maxRoi = searchParams?.maxRoi ? Number.parseFloat(searchParams.maxRoi) : undefined
 
   const projectsPerPage = 10
   
@@ -55,10 +55,12 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
         const response = await fetch(`/api/projects?${params.toString()}`)
         const data = await response.json()
         
-        setCurrentProjects(data.data)
-        setTotalProjects(data.meta.total)
+        setCurrentProjects(data.data || [])
+        setTotalProjects(data.meta?.total || 0)
       } catch (error) {
         console.error("Error fetching projects:", error)
+        setCurrentProjects([])
+        setTotalProjects(0)
       } finally {
         setIsLoading(false)
       }
@@ -75,11 +77,15 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
   }
 
   const navigateToProject = (project: Project) => {
-    router.push(`/projects/${generateSlug(project.name)}`)
+    if (project && project.name) {
+      router.push(`/projects/${generateSlug(project.name)}`)
+    }
   }
 
   // Get blockchain icon based on blockchain name
   const getBlockchainIcon = (blockchain: string) => {
+    if (!blockchain) return <BlockchainIcon className="h-4 w-4 mr-2 text-blue-400" />;
+    
     switch(blockchain.toLowerCase()) {
       case 'ethereum': 
         return <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>;
@@ -88,7 +94,7 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
       case 'solana': 
         return <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>;
       default:
-        return <Blockchain className="h-4 w-4 mr-2 text-blue-400" />;
+        return <BlockchainIcon className="h-4 w-4 mr-2 text-blue-400" />;
     }
   };
 
@@ -139,7 +145,7 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentProjects.length > 0 ? (
+                  {currentProjects && currentProjects.length > 0 ? (
                     currentProjects.map((project) => (
                       <TableRow 
                         key={project.id} 
@@ -203,7 +209,7 @@ export default function DirectoryPage({ searchParams }: DirectoryPageProps) {
             
             {/* Mobile Card View - Shown only on mobile */}
             <div className="md:hidden space-y-4">
-              {currentProjects.length > 0 ? (
+              {currentProjects && currentProjects.length > 0 ? (
                 currentProjects.map((project) => (
                   <div 
                     key={project.id}
