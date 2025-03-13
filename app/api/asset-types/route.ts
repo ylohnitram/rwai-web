@@ -89,4 +89,10 @@ export async function POST(request: Request) {
       success: true
     }, { status: 201 });
   } catch (error: any) {
-    console.er
+    console.error("Error in POST /api/asset-types:", error);
+    return NextResponse.json(
+      { error: "Failed to create asset type", message: error.message },
+      { status: 500 }
+    );
+  }
+}
