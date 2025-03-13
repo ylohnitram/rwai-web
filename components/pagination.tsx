@@ -1,32 +1,21 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname, useSearchParams, useRouter } from "next/navigation"
+import { useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useCallback } from "react"
 
 interface PaginationProps {
   totalPages: number
+  currentPage: number
+  onPageChange: (page: number) => void
 }
 
-export default function Pagination({ totalPages }: PaginationProps) {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const currentPage = Number.parseInt(searchParams.get("page") || "1")
-
-  const createPageURL = useCallback((pageNumber: number) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("page", pageNumber.toString())
-    return `${pathname}?${params.toString()}`
-  }, [pathname, searchParams])
-
+export default function Pagination({ totalPages, currentPage, onPageChange }: PaginationProps) {
   const handlePageChange = useCallback((pageNumber: number) => {
     if (pageNumber < 1 || pageNumber > totalPages) return
-    const url = createPageURL(pageNumber)
-    router.push(url)
-  }, [createPageURL, totalPages, router])
+    onPageChange(pageNumber)
+  }, [totalPages, onPageChange])
 
   return (
     <div className="flex items-center justify-between">

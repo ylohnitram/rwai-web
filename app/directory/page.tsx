@@ -10,7 +10,7 @@ import Pagination from "@/components/pagination"
 import Breadcrumbs from "@/components/breadcrumbs"
 import LegalDisclaimer from "@/components/legal-disclaimer"
 import { Card, CardContent } from "@/components/ui/card"
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState, Suspense, useCallback } from "react"
 import { Project } from "@/types/project"
 import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText } from "lucide-react"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
@@ -23,8 +23,8 @@ function DirectoryContent() {
   const [currentProjects, setCurrentProjects] = useState<Project[]>([])
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(Number.parseInt(searchParams.get("page") || "1"))
 
-  const page = Number.parseInt(searchParams.get("page") || "1")
   const assetType = searchParams.get("assetType") || ""
   const blockchain = searchParams.get("blockchain") || ""
   const minRoi = searchParams.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi")) : undefined
@@ -32,13 +32,32 @@ function DirectoryContent() {
 
   const projectsPerPage = 10
   
+  // Update URL when page changes
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page)
+    
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", page.toString())
+    
+    // Use shallow routing to prevent full page reload
+    router.push(`/directory?${params.toString()}`, { scroll: false })
+  }, [router, searchParams])
+  
+  useEffect(() => {
+    // Update the current page when the URL changes
+    const urlPage = Number.parseInt(searchParams.get("page") || "1")
+    if (urlPage !== currentPage) {
+      setCurrentPage(urlPage)
+    }
+  }, [searchParams, currentPage])
+  
   useEffect(() => {
     async function fetchProjects() {
       setIsLoading(true)
       try {
         // Fetch projects from API
         const params = new URLSearchParams()
-        params.set('page', page.toString())
+        params.set('page', currentPage.toString())
         if (assetType) params.set('assetType', assetType)
         if (blockchain) params.set('blockchain', blockchain)
         if (minRoi !== undefined) params.set('minRoi', minRoi.toString())
@@ -59,7 +78,7 @@ function DirectoryContent() {
     }
     
     fetchProjects()
-  }, [page, assetType, blockchain, minRoi, maxRoi, searchParams])
+  }, [currentPage, assetType, blockchain, minRoi, maxRoi])
   
   const totalPages = Math.ceil(totalProjects / projectsPerPage)
 
@@ -278,7 +297,11 @@ function DirectoryContent() {
       {/* Pagination */}
       {totalProjects > 0 && (
         <div className="mt-6">
-          <Pagination totalPages={totalPages} />
+          <Pagination 
+            totalPages={totalPages} 
+            currentPage={currentPage}
+            onPageChange={handlePageChange}
+          />
         </div>
       )}
     </>
