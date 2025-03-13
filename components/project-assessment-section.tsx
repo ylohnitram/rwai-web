@@ -60,9 +60,14 @@ export default function ProjectAssessmentSection({
             {styles.icon}
             Project Security Assessment
           </CardTitle>
-          <Badge className={manuallyReviewed ? "bg-blue-600" : styles.badgeBg}>
-            {manuallyReviewed ? "MANUALLY VERIFIED" : styles.badgeText}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {manuallyReviewed && (
+              <Badge className="bg-blue-600">VERIFIED</Badge>
+            )}
+            <Badge className={styles.badgeBg}>
+              {styles.badgeText}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -109,7 +114,7 @@ export default function ProjectAssessmentSection({
               <h3 className="text-sm font-medium text-blue-400 mb-1">Important Information</h3>
               <p className="text-sm text-gray-300">
                 {manuallyReviewed ? 
-                  "This project has been manually reviewed by our team. While it has passed our verification process, always conduct your own research before investing." :
+                  "This project has been reviewed by our security team. While it has passed our verification process, always conduct your own research before investing." :
                   "This is an automated assessment based on our security processes. While this project has passed our basic checks, always conduct your own research and due diligence before investing."
                 }
               </p>
