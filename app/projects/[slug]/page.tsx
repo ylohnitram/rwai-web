@@ -83,9 +83,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     notFound()
   }
 
-  // Determine risk level based on project information
-  const riskLevel = project.audit_document_path ? "low" : "medium";
-  const auditVerified = !!project.audit_document_path;
+  // Determine audit status and risk level based on project information
+  const hasAudit = Boolean(project.audit_url || project.audit_document_path);
+  const auditVerified = hasAudit;
+  const riskLevel = hasAudit ? "low" : "medium";
   
   // Get related projects of the same type
   const relatedProjects = await getProjectsByType(project.type, 3, project.id);

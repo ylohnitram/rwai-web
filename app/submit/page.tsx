@@ -1,7 +1,6 @@
-// app/submit/page.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -18,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ImprovedDocumentUpload from "@/components/improved-document-upload"
 import AssetTypeSelector from "@/components/asset-type-selector"
+import { Network } from "@/lib/services/network-service"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -77,6 +77,37 @@ export default function SubmitPage() {
   const [auditDocumentUrl, setAuditDocumentUrl] = useState<string | null>(null)
   const [whitepaperDocumentUrl, setWhitepaperDocumentUrl] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>("general")
+  const [networks, setNetworks] = useState<Network[]>([])
+  const [isLoadingNetworks, setIsLoadingNetworks] = useState(true)
+
+  // Fetch available networks from the database
+  useEffect(() => {
+    const fetchNetworks = async () => {
+      try {
+        setIsLoadingNetworks(true)
+        const response = await fetch('/api/networks')
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch networks: ${response.status}`)
+        }
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          setNetworks(data.data)
+        } else {
+          throw new Error(data.error || 'Failed to fetch networks')
+        }
+      } catch (err) {
+        console.error('Error fetching networks:', err)
+        // Don't set an error - fallback to hardcoded networks if needed
+      } finally {
+        setIsLoadingNetworks(false)
+      }
+    }
+    
+    fetchNetworks()
+  }, [])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -111,6 +142,11 @@ export default function SubmitPage() {
     setError(null)
 
     try {
+      // Check that at least one of audit document or URL is provided
+      if (!values.auditDocumentPath && !values.auditUrl) {
+        console.log("Warning: No audit information provided")
+      }
+
       // Prepare project data
       const projectData = {
         name: values.name,
@@ -124,9 +160,9 @@ export default function SubmitPage() {
         contact_email: values.contactEmail,
         audit_document_path: values.auditDocumentPath,
         whitepaper_document_path: values.whitepaperDocumentPath,
-        // Add URLs
-        audit_url: values.auditUrl || auditDocumentUrl || null,
-        whitepaper_url: values.whitepaperUrl || whitepaperDocumentUrl || null,
+        // Add URLs - ensure they're stored properly in the database
+        audit_url: values.auditUrl || null,
+        whitepaper_url: values.whitepaperUrl || null,
       }
       
       console.log("Submitting project data:", projectData);
@@ -281,13 +317,26 @@ export default function SubmitPage() {
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger className="bg-gray-800 border-gray-700">
-                                  <SelectValue placeholder="Select blockchain" />
+                                  <SelectValue placeholder={isLoadingNetworks ? "Loading networks..." : "Select blockchain"} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent className="bg-gray-800 border-gray-700">
-                                <SelectItem value="Ethereum">Ethereum</SelectItem>
-                                <SelectItem value="Polygon">Polygon</SelectItem>
-                                <SelectItem value="Solana">Solana</SelectItem>
+                                {networks.length > 0 ? (
+                                  networks.map((network) => (
+                                    <SelectItem key={network.id} value={network.name}>
+                                      {network.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  // Fallback options if networks can't be loaded
+                                  <>
+                                    <SelectItem value="Ethereum">Ethereum</SelectItem>
+                                    <SelectItem value="Polygon">Polygon</SelectItem>
+                                    <SelectItem value="Solana">Solana</SelectItem>
+                                    <SelectItem value="Avalanche">Avalanche</SelectItem>
+                                    <SelectItem value="BSC">Binance Smart Chain</SelectItem>
+                                  </>
+                                )}
                               </SelectContent>
                             </Select>
                             <FormMessage />

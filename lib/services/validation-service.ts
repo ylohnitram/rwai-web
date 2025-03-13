@@ -216,8 +216,8 @@ async function checkForSanctions(project: Project): Promise<ValidationResult> {
  * Verifies if a project has been audited by a recognized security firm
  */
 async function verifyAuditDocument(project: Project): Promise<ValidationResult> {
-  // Existing implementation with added manual review notes...
-  if (!project.audit_document_path && !project.auditUrl) {
+  // First check if project has either an audit URL or an audit document path
+  if (!project.audit_document_path && !project.audit_url) {
     return {
       passed: false,
       details: 'No audit document or URL provided. Manual review recommended.'
@@ -233,8 +233,30 @@ async function verifyAuditDocument(project: Project): Promise<ValidationResult> 
   ];
   
   try {
-    // If we have an audit document path, check if it's from a recognized firm
-    if (project.audit_document_path) {
+    // If we have an audit URL, check if it points to a recognized audit firm
+    if (project.audit_url) {
+      const auditUrl = project.audit_url.toLowerCase();
+      
+      // Check if URL contains any of the recognized audit firms
+      const detectedFirm = recognizedAuditFirms.find(firm => 
+        auditUrl.includes(firm.toLowerCase())
+      );
+      
+      if (detectedFirm) {
+        return {
+          passed: true,
+          details: `Verified audit from: ${detectedFirm}`
+        };
+      }
+      
+      // If we can't detect a recognized firm, mark for manual verification
+      return {
+        passed: false,
+        details: 'Audit URL provided but not from a recognized security firm. Manual verification required.'
+      };
+    }
+    // If we have an audit document path, check if it exists
+    else if (project.audit_document_path) {
       const supabase = getSupabaseClient();
       
       // Verify the file exists in storage
@@ -259,28 +281,6 @@ async function verifyAuditDocument(project: Project): Promise<ValidationResult> 
         details: 'Audit document provided but automated verification is limited. Manual review required to verify audit credibility.'
       };
     } 
-    // If we have an audit URL, check if it points to a recognized audit firm
-    else if (project.auditUrl) {
-      const auditUrl = project.auditUrl.toLowerCase();
-      
-      // Check if URL contains any of the recognized audit firms
-      const detectedFirm = recognizedAuditFirms.find(firm => 
-        auditUrl.includes(firm.toLowerCase())
-      );
-      
-      if (detectedFirm) {
-        return {
-          passed: true,
-          details: `Verified audit from: ${detectedFirm}`
-        };
-      }
-      
-      // If we can't detect a recognized firm, mark for manual verification
-      return {
-        passed: false,
-        details: 'Audit URL provided but not from a recognized security firm. Manual verification required.'
-      };
-    }
     
     return {
       passed: false,

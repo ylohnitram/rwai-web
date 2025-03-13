@@ -8,7 +8,7 @@ export type Project = {
   roi: number;
   description: string;
   tvl: string;
-  auditUrl?: string;
+  audit_url?: string;  // Explicitly define audit_url with correct casing
   website: string;
   approved: boolean;  // Legacy field, kept for backwards compatibility
   status: ProjectStatus;
@@ -21,11 +21,13 @@ export type Project = {
   reviewer_id?: string;
   reviewed_at?: string;
   audit_document_path?: string;
-  whitepaper_document_path?: string; // Add this line
+  whitepaper_document_path?: string;
   contact_email?: string;
 
-  audit_url?: string;
   whitepaper_url?: string;
+  
+  // Add compatibility aliases for fields with different naming conventions
+  auditUrl?: string; // Alias for audit_url
 };
 
 export type ProjectReview = {
