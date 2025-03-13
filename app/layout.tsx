@@ -4,8 +4,12 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import NavWrapper from "@/app/nav-wrapper"
 import Footer from "@/components/footer"
+import AnalyticsProvider from "@/components/analytics-provider"
 
 const inter = Inter({ subsets: ["latin"] })
+
+// Get measurement ID from environment variable
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''
 
 export const metadata: Metadata = {
   title: {
@@ -89,6 +93,7 @@ export default function RootLayout({
         <NavWrapper />
         {children}
         <Footer />
+        {GA_MEASUREMENT_ID && <AnalyticsProvider GA_MEASUREMENT_ID={GA_MEASUREMENT_ID} />}
       </body>
     </html>
   )
