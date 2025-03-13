@@ -21,11 +21,21 @@ export default function DirectoryFilters() {
     Number.parseFloat(searchParams?.get("maxRoi") || "30"),
   ])
 
-  // Apply filters
+  // Initialize filters from URL on component mount
+  useEffect(() => {
+    if (searchParams) {
+      setAssetType(searchParams.get("assetType") || "all-types")
+      setBlockchain(searchParams.get("blockchain") || "all-blockchains")
+      setRoiRange([
+        Number.parseFloat(searchParams.get("minRoi") || "0"),
+        Number.parseFloat(searchParams.get("maxRoi") || "30"),
+      ])
+    }
+  }, [searchParams])
+
+  // Apply filters with debounce for ROI slider
   const applyFilters = () => {
-    if (!searchParams) return;
-    
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() || "")
 
     // Reset to page 1 when filters change
     params.set("page", "1")
@@ -49,12 +59,27 @@ export default function DirectoryFilters() {
     router.push(`${pathname}?${params.toString()}`)
   }
 
-  // Apply filters when component mounts
+  // Handle ROI range change with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      applyFilters()
+    }, 300) // Debounce for 300ms
+
+    return () => clearTimeout(timer)
+  }, [roiRange])
+
+  // Handle other filter changes immediately
   useEffect(() => {
     if (searchParams) {
-      applyFilters()
+      // Only apply if assetType or blockchain changes, not on initial load
+      const currentAssetType = searchParams.get("assetType") || "all-types"
+      const currentBlockchain = searchParams.get("blockchain") || "all-blockchains"
+      
+      if (currentAssetType !== assetType || currentBlockchain !== blockchain) {
+        applyFilters()
+      }
     }
-  }, [assetType, blockchain, roiRange, searchParams, pathname, router])
+  }, [assetType, blockchain])
 
   return (
     <Card className="mb-8 bg-gray-900 border-gray-800">

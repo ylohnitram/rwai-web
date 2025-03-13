@@ -85,57 +85,15 @@ function DirectoryContent() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
-  // Get filters from URL but don't make them control the component directly
-  const urlAssetType = searchParams?.get("assetType") || ""
-  const urlBlockchain = searchParams?.get("blockchain") || ""
-  const urlMinRoi = searchParams?.get("minRoi") ? Number.parseFloat(searchParams?.get("minRoi") || "0") : 0
-  const urlMaxRoi = searchParams?.get("maxRoi") ? Number.parseFloat(searchParams?.get("maxRoi") || "30") : 30
-  
-  // Store filters in state
-  const [filters, setFilters] = useState({
-    assetType: urlAssetType,
-    blockchain: urlBlockchain,
-    minRoi: urlMinRoi,
-    maxRoi: urlMaxRoi,
-    page: Number.parseInt(searchParams?.get("page") || "1")
-  })
-  
-  // Initialize from URL params on first load
-  useEffect(() => {
-    setFilters({
-      assetType: urlAssetType,
-      blockchain: urlBlockchain,
-      minRoi: urlMinRoi,
-      maxRoi: urlMaxRoi,
-      page: Number.parseInt(searchParams?.get("page") || "1")
-    })
-    setCurrentPage(Number.parseInt(searchParams?.get("page") || "1"))
-  }, [])
-
-  // Handle page change without relying on URL changes
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page)
-    setFilters(prev => ({ ...prev, page }))
-    
-    // Manually fetch new data with the updated page
-    fetchProjects(page, filters.assetType, filters.blockchain, filters.minRoi, filters.maxRoi)
-    
-    // Update URL but don't rely on it for state
-    const params = new URLSearchParams(searchParams?.toString() || "")
-    params.set("page", page.toString())
-    
-    // Use replace instead of push to avoid adding to history
-    window.history.replaceState({}, "", `/directory?${params.toString()}`)
-  }, [filters, searchParams])
+  // Get the query parameters directly, so we can watch for changes
+  const assetType = searchParams?.get("assetType") || ""
+  const blockchain = searchParams?.get("blockchain") || ""
+  const minRoi = searchParams?.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi") || "0") : 0
+  const maxRoi = searchParams?.get("maxRoi") ? Number.parseFloat(searchParams.get("maxRoi") || "30") : 30
+  const page = Number.parseInt(searchParams?.get("page") || "1")
   
   // Function to fetch projects (extracted to be reusable)
-  const fetchProjects = async (
-    page: number, 
-    assetType: string, 
-    blockchain: string, 
-    minRoi?: number,
-    maxRoi?: number
-  ) => {
+  const fetchProjects = useCallback(async () => {
     setIsLoading(true)
     try {
       // Fetch projects from API
@@ -143,8 +101,8 @@ function DirectoryContent() {
       params.set('page', page.toString())
       if (assetType) params.set('assetType', assetType)
       if (blockchain) params.set('blockchain', blockchain)
-      if (minRoi !== undefined) params.set('minRoi', minRoi.toString())
-      if (maxRoi !== undefined) params.set('maxRoi', maxRoi.toString())
+      params.set('minRoi', minRoi.toString())
+      params.set('maxRoi', maxRoi.toString())
       
       const response = await fetch(`/api/projects?${params.toString()}`)
       const data = await response.json()
@@ -160,12 +118,23 @@ function DirectoryContent() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [page, assetType, blockchain, minRoi, maxRoi])
   
-  // Fetch projects when filters change
+  // Fetch projects when searchParams change
   useEffect(() => {
-    fetchProjects(filters.page, filters.assetType, filters.blockchain, filters.minRoi, filters.maxRoi)
-  }, [filters])
+    fetchProjects()
+    setCurrentPage(page)
+  }, [fetchProjects, page])
+  
+  // Handle page change
+  const handlePageChange = useCallback((newPage: number) => {
+    // Create a new URLSearchParams instance
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("page", newPage.toString())
+    
+    // Navigate to the new URL which will trigger the useEffect to fetch new data
+    router.push(`/directory?${params.toString()}`)
+  }, [router, searchParams])
   
   // Function to generate slug from project name
   function generateSlug(name: string): string {
