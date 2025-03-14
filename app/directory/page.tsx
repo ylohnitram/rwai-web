@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,7 @@ import DirectoryFilters from "@/components/directory-filters"
 import Breadcrumbs from "@/components/breadcrumbs"
 import LegalDisclaimer from "@/components/legal-disclaimer"
 import { Card, CardContent } from "@/components/ui/card"
-import { useEffect, useState, Suspense, useCallback } from "react"
+import { useEffect, useState, Suspense, useCallback, useTransition } from "react"
 import { Project } from "@/types/project"
 import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText } from "lucide-react"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
@@ -19,7 +19,9 @@ import Pagination from "@/components/pagination"
 // Create a separate component for the directory content that uses useSearchParams
 function DirectoryContent() {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
   const [currentProjects, setCurrentProjects] = useState<Project[]>([])
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -33,12 +35,12 @@ function DirectoryContent() {
   const currentPage = Number.parseInt(searchParams?.get("page") || "1")
   
   // Function to fetch projects (extracted to be reusable)
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (page = currentPage) => {
     setIsLoading(true)
     try {
       // Fetch projects from API
       const params = new URLSearchParams()
-      params.set('page', currentPage.toString())
+      params.set('page', page.toString())
       if (assetType) params.set('assetType', assetType)
       if (blockchain) params.set('blockchain', blockchain)
       params.set('minRoi', minRoi.toString())
@@ -60,10 +62,17 @@ function DirectoryContent() {
     }
   }, [assetType, blockchain, minRoi, maxRoi, currentPage])
   
-  // Fetch projects when any query parameter changes
+  // Fetch projects when query parameters change
   useEffect(() => {
     fetchProjects()
   }, [fetchProjects])
+  
+  // Update URL without triggering a full navigation
+  const updateUrlWithoutNavigation = useCallback((newParams: URLSearchParams) => {
+    const url = new URL(window.location.href)
+    url.search = newParams.toString()
+    window.history.pushState({}, '', url)
+  }, [])
   
   // Handle page change
   const handlePageChange = useCallback((newPage: number) => {
@@ -73,9 +82,17 @@ function DirectoryContent() {
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", newPage.toString())
     
-    // Navigate to the new URL which will trigger the useEffect to fetch new data
-    router.push(`/directory?${params.toString()}`)
-  }, [router, searchParams, totalPages])
+    // Update URL without full navigation
+    updateUrlWithoutNavigation(params)
+    
+    // Fetch new data for the page
+    fetchProjects(newPage)
+    
+    // Use startTransition to avoid blocking UI updates
+    startTransition(() => {
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    })
+  }, [router, pathname, searchParams, totalPages, fetchProjects, updateUrlWithoutNavigation])
   
   // Function to generate slug from project name
   function generateSlug(name: string): string {
@@ -126,7 +143,7 @@ function DirectoryContent() {
       {/* Legal Disclaimer */}
       <LegalDisclaimer />
 
-      {isLoading ? (
+      {isLoading || isPending ? (
         <div className="text-center py-8">
           <div className="animate-pulse flex flex-col items-center">
             <div className="h-10 w-10 bg-gray-700 rounded-full mb-4"></div>
