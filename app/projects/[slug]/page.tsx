@@ -73,7 +73,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
       canonical: projectUrl,
     },
     openGraph: {
-      images: [`/api/og?title=${encodeURIComponent(project.name)}`],
+      images: ['/og-images/projects.jpg'],
       type: "website",
       title: `${project.name} | TokenDirectory by RWA Investors`,
       description: project.description.substring(0, 160),
@@ -84,7 +84,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
       card: "summary_large_image",
       title: `${project.name} | TokenDirectory by RWA Investors`,
       description: project.description.substring(0, 160),
-      images: [`/api/og?title=${encodeURIComponent(project.name)}`],
+      images: ['/og-images/projects.jpg'],
     },
   }
 }

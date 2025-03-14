@@ -1,4 +1,3 @@
-// app/layout.tsx
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
@@ -40,7 +39,7 @@ export const metadata: Metadata = {
     siteName: 'TokenDirectory',
     images: [
       {
-        url: '/api/og?title=TokenDirectory',
+        url: '/og-images/default.jpg',
         width: 1200,
         height: 630,
         alt: 'TokenDirectory - Tokenized Real-World Assets',
@@ -53,7 +52,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'TokenDirectory | Audited RWA Projects for Investors',
     description: 'Discover 100+ professionally audited tokenized asset projects with transparent on-chain data.',
-    images: ['/api/og?title=TokenDirectory'],
+    images: ['/og-images/default.jpg'],
     creator: '@rwainvestors',
   },
   viewport: {

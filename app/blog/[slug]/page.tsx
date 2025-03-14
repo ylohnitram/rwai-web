@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       description: post.excerpt,
       type: 'article',
       url: postUrl,
-      images: [`/api/og?title=${encodeURIComponent(post.title)}`],
+      images: ['/og-images/blog.jpg'],
       authors: [post.author],
       publishedTime: new Date(post.date).toISOString(),
       siteName: "TokenDirectory by RWA Investors",
@@ -58,7 +58,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       card: 'summary_large_image',
       title: post.title,
       description: post.excerpt,
-      images: [`/api/og?title=${encodeURIComponent(post.title)}`],
+      images: ['/og-images/blog.jpg'],
       creator: '@rwainvestors',
     },
   }
