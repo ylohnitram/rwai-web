@@ -30,7 +30,7 @@ function DirectoryContent() {
   const blockchain = searchParams?.get("blockchain") || ""
   const minRoi = searchParams?.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi") || "0") : 0
   const maxRoi = searchParams?.get("maxRoi") ? Number.parseFloat(searchParams.get("maxRoi") || "30") : 30
-  const page = Number.parseInt(searchParams?.get("page") || "1")
+  const currentPage = Number.parseInt(searchParams?.get("page") || "1")
   
   // Function to fetch projects (extracted to be reusable)
   const fetchProjects = useCallback(async () => {
@@ -38,7 +38,7 @@ function DirectoryContent() {
     try {
       // Fetch projects from API
       const params = new URLSearchParams()
-      params.set('page', page.toString())
+      params.set('page', currentPage.toString())
       if (assetType) params.set('assetType', assetType)
       if (blockchain) params.set('blockchain', blockchain)
       params.set('minRoi', minRoi.toString())
@@ -58,22 +58,24 @@ function DirectoryContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, assetType, blockchain, minRoi, maxRoi])
+  }, [assetType, blockchain, minRoi, maxRoi, currentPage])
   
-  // Fetch projects when searchParams change
+  // Fetch projects when any query parameter changes
   useEffect(() => {
     fetchProjects()
   }, [fetchProjects])
   
   // Handle page change
   const handlePageChange = useCallback((newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return
+    
     // Create a new URLSearchParams instance
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", newPage.toString())
     
     // Navigate to the new URL which will trigger the useEffect to fetch new data
     router.push(`/directory?${params.toString()}`)
-  }, [router, searchParams])
+  }, [router, searchParams, totalPages])
   
   // Function to generate slug from project name
   function generateSlug(name: string): string {
@@ -287,12 +289,12 @@ function DirectoryContent() {
         </>
       )}
 
-      {/* Pagination - now using the separate component */}
+      {/* Pagination - using the separate component */}
       {totalProjects > 0 && (
         <div className="mt-6">
           <Pagination 
             totalPages={totalPages} 
-            currentPage={page}
+            currentPage={currentPage}
             onPageChange={handlePageChange}
           />
         </div>
