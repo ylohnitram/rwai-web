@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter, useSearchParams, usePathname } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,7 @@ import DirectoryFilters from "@/components/directory-filters"
 import Breadcrumbs from "@/components/breadcrumbs"
 import LegalDisclaimer from "@/components/legal-disclaimer"
 import { Card, CardContent } from "@/components/ui/card"
-import { useEffect, useState, Suspense, useCallback } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { Project } from "@/types/project"
 import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText } from "lucide-react"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
@@ -18,88 +18,72 @@ import Pagination from "@/components/pagination"
 
 // Create a separate component for the directory content that uses useSearchParams
 function DirectoryContent() {
-  const router = useRouter()
-  const pathname = usePathname()
   const searchParams = useSearchParams()
   
-  // State management
+  // State
   const [currentProjects, setCurrentProjects] = useState<Project[]>([])
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-
+  const [localPage, setLocalPage] = useState(1)
+  
   // Extract filter parameters
   const assetType = searchParams?.get("assetType") || ""
   const blockchain = searchParams?.get("blockchain") || ""
   const minRoi = searchParams?.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi") || "0") : 0
   const maxRoi = searchParams?.get("maxRoi") ? Number.parseFloat(searchParams.get("maxRoi") || "30") : 30
   
-  // Set current page from URL or default to 1
+  // Set initial page from URL params, but only on initial load
   useEffect(() => {
-    const pageParam = searchParams?.get("page")
-    const parsedPage = pageParam ? parseInt(pageParam, 10) : 1
-    setCurrentPage(parsedPage || 1)
-  }, [searchParams])
-
-  // Function to fetch projects
-  const fetchProjects = useCallback(async () => {
-    setIsLoading(true)
-    
-    try {
-      // Create query parameters
-      const queryParams = new URLSearchParams()
-      queryParams.set('page', currentPage.toString())
-      if (assetType) queryParams.set('assetType', assetType)
-      if (blockchain) queryParams.set('blockchain', blockchain)
-      queryParams.set('minRoi', minRoi.toString())
-      queryParams.set('maxRoi', maxRoi.toString())
-      
-      // Fetch data from API
-      const response = await fetch(`/api/projects?${queryParams.toString()}`)
-      const data = await response.json()
-      
-      // Update state with fetched data
-      setCurrentProjects(data.data || [])
-      setTotalProjects(data.meta?.total || 0)
-      setTotalPages(Math.ceil((data.meta?.total || 0) / 10))
-    } catch (error) {
-      console.error("Error fetching projects:", error)
-      setCurrentProjects([])
-      setTotalProjects(0)
-      setTotalPages(1)
-    } finally {
-      setIsLoading(false)
+    const pageFromParams = searchParams?.get("page")
+    if (pageFromParams) {
+      const parsedPage = parseInt(pageFromParams, 10)
+      if (!isNaN(parsedPage) && parsedPage > 0) {
+        setLocalPage(parsedPage)
+      }
     }
-  }, [assetType, blockchain, minRoi, maxRoi, currentPage])
+  }, []) // Empty dependency array means this only runs once on mount
   
-  // Fetch projects when dependencies change
+  // Fetch projects based on all filters and local page state
   useEffect(() => {
+    const fetchProjects = async () => {
+      setIsLoading(true)
+      
+      try {
+        const params = new URLSearchParams()
+        params.set('page', localPage.toString())
+        if (assetType) params.set('assetType', assetType)
+        if (blockchain) params.set('blockchain', blockchain)
+        params.set('minRoi', minRoi.toString())
+        params.set('maxRoi', maxRoi.toString())
+        
+        const response = await fetch(`/api/projects?${params.toString()}`)
+        const data = await response.json()
+        
+        setCurrentProjects(data.data || [])
+        setTotalProjects(data.meta?.total || 0)
+        setTotalPages(Math.ceil((data.meta?.total || 0) / 10))
+      } catch (error) {
+        console.error("Error fetching projects:", error)
+        setCurrentProjects([])
+        setTotalProjects(0)
+        setTotalPages(1)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
     fetchProjects()
-  }, [fetchProjects])
-
-  // Handle page change
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages) return
-    
-    // Create a new query parameters object from the current URL search params
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("page", newPage.toString())
-    
-    // Update URL without triggering a page reload
-    router.push(`${pathname}?${params.toString()}`, { scroll: false })
-  }
-
+  }, [assetType, blockchain, minRoi, maxRoi, localPage])
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setLocalPage(1)
+  }, [assetType, blockchain, minRoi, maxRoi])
+  
   // Generate slug function
   function generateSlug(name: string): string {
     return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
-  }
-
-  // Navigate to project detail
-  const navigateToProject = (project: Project) => {
-    if (project && project.name) {
-      router.push(`/projects/${generateSlug(project.name)}`)
-    }
   }
 
   // Get blockchain icon
@@ -169,7 +153,6 @@ function DirectoryContent() {
                     <TableRow 
                       key={project.id} 
                       className="hover:bg-gray-800 border-gray-800 cursor-pointer"
-                      onClick={() => navigateToProject(project)}
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center">
@@ -230,10 +213,10 @@ function DirectoryContent() {
           <div className="md:hidden space-y-4">
             {currentProjects && currentProjects.length > 0 ? (
               currentProjects.map((project) => (
-                <div 
+                <Link 
                   key={project.id}
+                  href={`/projects/${generateSlug(project.name)}`}
                   className="block"
-                  onClick={() => navigateToProject(project)}
                 >
                   <Card className="bg-gray-900/60 border-gray-800 hover:border-amber-500/30 transition-all cursor-pointer">
                     <CardContent className="p-4">
@@ -283,16 +266,16 @@ function DirectoryContent() {
                             )}
                           </div>
                           <Button asChild size="sm" variant="outline">
-                            <Link href={project.website} target="_blank" rel="noopener noreferrer">
+                            <a href={project.website} target="_blank" rel="noopener noreferrer">
                               <Globe className="h-3 w-3 mr-1" />
                               Website
-                            </Link>
+                            </a>
                           </Button>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                </div>
+                </Link>
               ))
             ) : (
               <div className="text-center py-8 text-gray-400 bg-gray-900/60 border border-gray-800 rounded-md">
@@ -303,13 +286,13 @@ function DirectoryContent() {
         </>
       )}
 
-      {/* Pagination */}
+      {/* Pagination - Only use local state for pagination */}
       {totalProjects > 0 && (
         <div className="mt-6">
           <Pagination 
             totalPages={totalPages} 
-            currentPage={currentPage}
-            onPageChange={handlePageChange}
+            currentPage={localPage}
+            onPageChange={(newPage) => setLocalPage(newPage)}
           />
         </div>
       )}
