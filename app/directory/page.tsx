@@ -26,6 +26,8 @@ function DirectoryContent() {
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [totalPages, setTotalPages] = useState(1)
+  // Use local state to track the current page to ensure UI updates
+  const [currentPageState, setCurrentPageState] = useState(1)
 
   // Get the query parameters directly, so we can watch for changes
   const assetType = searchParams?.get("assetType") || ""
@@ -33,6 +35,11 @@ function DirectoryContent() {
   const minRoi = searchParams?.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi") || "0") : 0
   const maxRoi = searchParams?.get("maxRoi") ? Number.parseFloat(searchParams.get("maxRoi") || "30") : 30
   const currentPage = Number.parseInt(searchParams?.get("page") || "1")
+  
+  // Update local state when URL param changes
+  useEffect(() => {
+    setCurrentPageState(currentPage)
+  }, [currentPage])
   
   // Function to fetch projects (extracted to be reusable)
   const fetchProjects = useCallback(async (page = currentPage) => {
@@ -67,23 +74,16 @@ function DirectoryContent() {
     fetchProjects()
   }, [fetchProjects])
   
-  // Update URL without triggering a full navigation
-  const updateUrlWithoutNavigation = useCallback((newParams: URLSearchParams) => {
-    const url = new URL(window.location.href)
-    url.search = newParams.toString()
-    window.history.pushState({}, '', url)
-  }, [])
-  
   // Handle page change
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return
     
+    // Update local state immediately
+    setCurrentPageState(newPage)
+    
     // Create a new URLSearchParams instance
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", newPage.toString())
-    
-    // Update URL without full navigation
-    updateUrlWithoutNavigation(params)
     
     // Fetch new data for the page
     fetchProjects(newPage)
@@ -92,7 +92,7 @@ function DirectoryContent() {
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     })
-  }, [router, pathname, searchParams, totalPages, fetchProjects, updateUrlWithoutNavigation])
+  }, [router, pathname, searchParams, totalPages, fetchProjects])
   
   // Function to generate slug from project name
   function generateSlug(name: string): string {
@@ -311,7 +311,7 @@ function DirectoryContent() {
         <div className="mt-6">
           <Pagination 
             totalPages={totalPages} 
-            currentPage={currentPage}
+            currentPage={currentPageState}
             onPageChange={handlePageChange}
           />
         </div>
