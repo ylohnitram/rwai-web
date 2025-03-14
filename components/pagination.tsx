@@ -1,29 +1,25 @@
-"use client"
-
-import { useCallback } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface PaginationProps {
-  totalPages: number
-  currentPage: number
-  onPageChange: (page: number) => void
+  totalPages: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
 }
 
 export default function Pagination({ totalPages, currentPage, onPageChange }: PaginationProps) {
-  const handlePageChange = useCallback((pageNumber: number) => {
-    if (pageNumber < 1 || pageNumber > totalPages) return
-    onPageChange(pageNumber)
-  }, [totalPages, onPageChange])
+  // Don't render if there's only one page
+  if (totalPages <= 1) return null;
 
-  // Calculate which page numbers to show
+  // Generate array of page numbers to show
   const getPageNumbers = () => {
-    // Simple case: 5 or fewer pages total
+    // For 5 or fewer total pages, show all
     if (totalPages <= 5) {
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
     
-    // For more than 5 pages:
+    // For more pages, show a window around current page
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, startPage + 4);
     
@@ -47,7 +43,10 @@ export default function Pagination({ totalPages, currentPage, onPageChange }: Pa
           variant="outline" 
           size="icon" 
           disabled={currentPage <= 1}
-          onClick={() => handlePageChange(currentPage - 1)}
+          onClick={(e) => {
+            e.preventDefault();
+            onPageChange(currentPage - 1);
+          }}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -57,7 +56,10 @@ export default function Pagination({ totalPages, currentPage, onPageChange }: Pa
             key={pageNumber} 
             variant={currentPage === pageNumber ? "default" : "outline"} 
             size="icon"
-            onClick={() => handlePageChange(pageNumber)}
+            onClick={(e) => {
+              e.preventDefault();
+              onPageChange(pageNumber);
+            }}
           >
             {pageNumber}
           </Button>
@@ -67,11 +69,14 @@ export default function Pagination({ totalPages, currentPage, onPageChange }: Pa
           variant="outline" 
           size="icon" 
           disabled={currentPage >= totalPages}
-          onClick={() => handlePageChange(currentPage + 1)}
+          onClick={(e) => {
+            e.preventDefault();
+            onPageChange(currentPage + 1);
+          }}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </div>
-  )
+  );
 }

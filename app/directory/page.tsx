@@ -9,7 +9,7 @@ import DirectoryFilters from "@/components/directory-filters"
 import Breadcrumbs from "@/components/breadcrumbs"
 import LegalDisclaimer from "@/components/legal-disclaimer"
 import { Card, CardContent } from "@/components/ui/card"
-import { useEffect, useState, Suspense, useCallback, useTransition } from "react"
+import { useEffect, useState, Suspense, useCallback } from "react"
 import { Project } from "@/types/project"
 import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText } from "lucide-react"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
@@ -21,41 +21,45 @@ function DirectoryContent() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
+  
+  // State management
   const [currentProjects, setCurrentProjects] = useState<Project[]>([])
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  // Use local state to track the current page to ensure UI updates
-  const [currentPageState, setCurrentPageState] = useState(1)
 
-  // Get the query parameters directly, so we can watch for changes
+  // Extract filter parameters
   const assetType = searchParams?.get("assetType") || ""
   const blockchain = searchParams?.get("blockchain") || ""
   const minRoi = searchParams?.get("minRoi") ? Number.parseFloat(searchParams.get("minRoi") || "0") : 0
   const maxRoi = searchParams?.get("maxRoi") ? Number.parseFloat(searchParams.get("maxRoi") || "30") : 30
-  const currentPage = Number.parseInt(searchParams?.get("page") || "1")
   
-  // Update local state when URL param changes
+  // Set current page from URL or default to 1
   useEffect(() => {
-    setCurrentPageState(currentPage || 1)
-  }, [currentPage])
-  
-  // Function to fetch projects (extracted to be reusable)
-  const fetchProjects = useCallback(async (page = currentPageState) => {
+    const pageParam = searchParams?.get("page")
+    const parsedPage = pageParam ? parseInt(pageParam, 10) : 1
+    setCurrentPage(parsedPage || 1)
+  }, [searchParams])
+
+  // Function to fetch projects
+  const fetchProjects = useCallback(async () => {
     setIsLoading(true)
+    
     try {
-      // Fetch projects from API
-      const params = new URLSearchParams()
-      params.set('page', page.toString())
-      if (assetType) params.set('assetType', assetType)
-      if (blockchain) params.set('blockchain', blockchain)
-      params.set('minRoi', minRoi.toString())
-      params.set('maxRoi', maxRoi.toString())
+      // Create query parameters
+      const queryParams = new URLSearchParams()
+      queryParams.set('page', currentPage.toString())
+      if (assetType) queryParams.set('assetType', assetType)
+      if (blockchain) queryParams.set('blockchain', blockchain)
+      queryParams.set('minRoi', minRoi.toString())
+      queryParams.set('maxRoi', maxRoi.toString())
       
-      const response = await fetch(`/api/projects?${params.toString()}`)
+      // Fetch data from API
+      const response = await fetch(`/api/projects?${queryParams.toString()}`)
       const data = await response.json()
       
+      // Update state with fetched data
       setCurrentProjects(data.data || [])
       setTotalProjects(data.meta?.total || 0)
       setTotalPages(Math.ceil((data.meta?.total || 0) / 10))
@@ -67,56 +71,52 @@ function DirectoryContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [assetType, blockchain, minRoi, maxRoi, currentPageState])
+  }, [assetType, blockchain, minRoi, maxRoi, currentPage])
   
-  // Fetch projects when query parameters change
+  // Fetch projects when dependencies change
   useEffect(() => {
-    fetchProjects(currentPage)
-  }, [assetType, blockchain, minRoi, maxRoi, currentPage, fetchProjects])
-  
+    fetchProjects()
+  }, [fetchProjects])
+
   // Handle page change
-  const handlePageChange = useCallback((newPage: number) => {
+  const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return
     
-    // Update local state immediately
-    setCurrentPageState(newPage)
-    
-    // Create a new URLSearchParams instance
+    // Create a new query parameters object from the current URL search params
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", newPage.toString())
     
-    // Use startTransition to avoid blocking UI updates
-    startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-    })
-  }, [router, pathname, searchParams, totalPages])
-  
-  // Function to generate slug from project name
-  function generateSlug(name: string): string {
-    return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    // Update URL without triggering a page reload
+    router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
+  // Generate slug function
+  function generateSlug(name: string): string {
+    return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+  }
+
+  // Navigate to project detail
   const navigateToProject = (project: Project) => {
     if (project && project.name) {
       router.push(`/projects/${generateSlug(project.name)}`)
     }
   }
 
-  // Get blockchain icon based on blockchain name
+  // Get blockchain icon
   const getBlockchainIcon = (blockchain: string) => {
-    if (!blockchain) return <BlockchainIcon className="h-4 w-4 mr-2 text-blue-400" />;
+    if (!blockchain) return <BlockchainIcon className="h-4 w-4 mr-2 text-blue-400" />
     
     switch(blockchain.toLowerCase()) {
       case 'ethereum': 
-        return <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>;
+        return <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
       case 'polygon': 
-        return <div className="w-4 h-4 bg-purple-500 rounded-full mr-2"></div>;
+        return <div className="w-4 h-4 bg-purple-500 rounded-full mr-2"></div>
       case 'solana': 
-        return <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>;
+        return <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
       default:
-        return <BlockchainIcon className="h-4 w-4 mr-2 text-blue-400" />;
+        return <BlockchainIcon className="h-4 w-4 mr-2 text-blue-400" />
     }
-  };
+  }
 
   return (
     <>
@@ -140,7 +140,7 @@ function DirectoryContent() {
       {/* Legal Disclaimer */}
       <LegalDisclaimer />
 
-      {isLoading || isPending ? (
+      {isLoading ? (
         <div className="text-center py-8">
           <div className="animate-pulse flex flex-col items-center">
             <div className="h-10 w-10 bg-gray-700 rounded-full mb-4"></div>
@@ -303,12 +303,12 @@ function DirectoryContent() {
         </>
       )}
 
-      {/* Pagination - using the separate component */}
+      {/* Pagination */}
       {totalProjects > 0 && (
         <div className="mt-6">
           <Pagination 
             totalPages={totalPages} 
-            currentPage={currentPageState}
+            currentPage={currentPage}
             onPageChange={handlePageChange}
           />
         </div>
