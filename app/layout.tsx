@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     yandex: 'yandex-verification-id-here',
     yahoo: 'yahoo-verification-id-here',
     other: {
-      me: ['support@rwa-directory.com'],
+      me: ['support@rwa-investors.com'],
     },
   },
 }
