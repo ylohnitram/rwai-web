@@ -38,11 +38,11 @@ function DirectoryContent() {
   
   // Update local state when URL param changes
   useEffect(() => {
-    setCurrentPageState(currentPage)
+    setCurrentPageState(currentPage || 1)
   }, [currentPage])
   
   // Function to fetch projects (extracted to be reusable)
-  const fetchProjects = useCallback(async (page = currentPage) => {
+  const fetchProjects = useCallback(async (page = currentPageState) => {
     setIsLoading(true)
     try {
       // Fetch projects from API
@@ -67,12 +67,12 @@ function DirectoryContent() {
     } finally {
       setIsLoading(false)
     }
-  }, [assetType, blockchain, minRoi, maxRoi, currentPage])
+  }, [assetType, blockchain, minRoi, maxRoi, currentPageState])
   
   // Fetch projects when query parameters change
   useEffect(() => {
-    fetchProjects()
-  }, [fetchProjects])
+    fetchProjects(currentPage)
+  }, [assetType, blockchain, minRoi, maxRoi, currentPage, fetchProjects])
   
   // Handle page change
   const handlePageChange = useCallback((newPage: number) => {
@@ -85,14 +85,11 @@ function DirectoryContent() {
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", newPage.toString())
     
-    // Fetch new data for the page
-    fetchProjects(newPage)
-    
     // Use startTransition to avoid blocking UI updates
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     })
-  }, [router, pathname, searchParams, totalPages, fetchProjects])
+  }, [router, pathname, searchParams, totalPages])
   
   // Function to generate slug from project name
   function generateSlug(name: string): string {
