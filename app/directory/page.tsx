@@ -11,69 +11,10 @@ import LegalDisclaimer from "@/components/legal-disclaimer"
 import { Card, CardContent } from "@/components/ui/card"
 import { useEffect, useState, Suspense, useCallback } from "react"
 import { Project } from "@/types/project"
-import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText, ChevronLeft, ChevronRight } from "lucide-react"
+import { Globe, Clipboard, BarChart4, CheckCircle, Database, Shield, FileText } from "lucide-react"
 import { BlockchainIcon } from "@/components/icons/blockchain-icon"
 import { formatTVL } from "@/lib/utils"
-
-// Implement pagination directly in the component to avoid any issues with re-rendering
-function CustomPagination({ totalPages, currentPage, onPageChange }: { 
-  totalPages: number, 
-  currentPage: number, 
-  onPageChange: (page: number) => void 
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="text-sm text-gray-400">
-        Page {currentPage} of {totalPages}
-      </div>
-      <div className="flex items-center space-x-2">
-        <Button 
-          variant="outline" 
-          size="icon" 
-          disabled={currentPage <= 1}
-          onClick={() => onPageChange(currentPage - 1)}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-
-        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-          // Show max 5 page buttons
-          let pageNumber = currentPage
-          if (currentPage < 3) {
-            pageNumber = i + 1
-          } else if (currentPage > totalPages - 2) {
-            pageNumber = totalPages - 4 + i
-          } else {
-            pageNumber = currentPage - 2 + i
-          }
-
-          if (pageNumber > 0 && pageNumber <= totalPages) {
-            return (
-              <Button 
-                key={pageNumber} 
-                variant={currentPage === pageNumber ? "default" : "outline"} 
-                size="icon"
-                onClick={() => onPageChange(pageNumber)}
-              >
-                {pageNumber}
-              </Button>
-            )
-          }
-          return null
-        })}
-
-        <Button 
-          variant="outline" 
-          size="icon" 
-          disabled={currentPage >= totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  )
-}
+import Pagination from "@/components/pagination"
 
 // Create a separate component for the directory content that uses useSearchParams
 function DirectoryContent() {
@@ -82,7 +23,6 @@ function DirectoryContent() {
   const [currentProjects, setCurrentProjects] = useState<Project[]>([])
   const [totalProjects, setTotalProjects] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
   // Get the query parameters directly, so we can watch for changes
@@ -123,8 +63,7 @@ function DirectoryContent() {
   // Fetch projects when searchParams change
   useEffect(() => {
     fetchProjects()
-    setCurrentPage(page)
-  }, [fetchProjects, page])
+  }, [fetchProjects])
   
   // Handle page change
   const handlePageChange = useCallback((newPage: number) => {
@@ -348,12 +287,12 @@ function DirectoryContent() {
         </>
       )}
 
-      {/* Pagination - implemented directly in this component */}
+      {/* Pagination - now using the separate component */}
       {totalProjects > 0 && (
         <div className="mt-6">
-          <CustomPagination 
+          <Pagination 
             totalPages={totalPages} 
-            currentPage={currentPage}
+            currentPage={page}
             onPageChange={handlePageChange}
           />
         </div>
