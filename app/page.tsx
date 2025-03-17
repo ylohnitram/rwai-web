@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, BarChart3, Layers, Shield, ChevronDown } from "lucide-react"
 import { WebsiteSchema, OrganizationSchema } from "@/components/seo/structured-data"
+import { createClient } from '@supabase/supabase-js';
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,7 +11,45 @@ import LegalDisclaimer from "@/components/legal-disclaimer"
 import { getFeaturedProjects } from "@/lib/services/project-service"
 import { getBlogPosts } from "@/lib/services/blog-service"
 
+// Function to get the project count
+async function getApprovedProjectCount() {
+  // Create a Supabase client for server-side usage
+  const supabaseServer = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
+  
+  try {
+    // Get count of approved projects
+    const { count, error } = await supabaseServer
+      .from("projects")
+      .select("*", { count: "exact", head: true })
+      .eq("approved", true);
+      
+    if (error) {
+      console.error("Error fetching project count:", error);
+      return "20+"; // Fallback value if there's an error
+    }
+    
+    // Round down to nearest 10 and add '+'
+    const roundedCount = Math.floor((count || 0) / 10) * 10;
+    return `${roundedCount}+`;
+  } catch (err) {
+    console.error("Error calculating project count:", err);
+    return "20+"; // Fallback value if there's an error
+  }
+}
+
 export default async function Home() {
+  // Get the dynamic project count
+  const projectCount = await getApprovedProjectCount();
+  
   // Fetch featured projects from database
   const featuredProjects = await getFeaturedProjects(3);
   
@@ -28,7 +67,7 @@ export default async function Home() {
         <div className="container px-4 md:px-6 relative z-10">
           <div className="flex flex-col items-center space-y-10 text-center">
             <div className="inline-flex px-4 py-1.5 rounded-full bg-amber-500/10 text-amber-500 font-medium text-sm">
-              100+ audited projects
+              {projectCount} audited projects
             </div>
 
             <div className="space-y-2">
@@ -38,7 +77,7 @@ export default async function Home() {
                 Real-World Assets
               </h1>
               <p className="mx-auto max-w-[700px] text-gray-400 md:text-xl">
-                TokenDirectory by RWA Investors – Explore 100+ audited RWA projects with transparent data, global access, and institutional-grade analytics.
+                TokenDirectory by RWA Investors – Explore {projectCount} audited RWA projects with transparent data, global access, and institutional-grade analytics.
               </p>
             </div>
 
