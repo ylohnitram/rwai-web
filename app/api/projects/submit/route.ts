@@ -32,19 +32,40 @@ export async function POST(request: Request) {
       );
     }
     
-    // Check if a project with the same name already exists
+    // Check for duplicates by name (case-insensitive) and blockchain
     try {
-      const exists = await projectExists(projectData.name);
-      if (exists) {
-        console.log(`Project with name "${projectData.name}" already exists`);
-        return NextResponse.json(
-          { error: `A project with the name "${projectData.name}" already exists. Please use a different name.` },
-          { status: 409 }  // 409 Conflict status code is appropriate for duplicate resources
-        );
+      // Query for existing projects with the same name and blockchain
+      const { data: existingProjects, error: queryError } = await supabaseAdmin
+        .from('projects')
+        .select('id, name, blockchain, status')
+        .ilike('name', projectData.name.trim())
+        .eq('blockchain', projectData.blockchain);
+        
+      if (queryError) {
+        console.error("Error checking for duplicate projects:", queryError);
+        throw queryError;
+      }
+      
+      // Check if any matching projects exist and aren't rejected
+      if (existingProjects && existingProjects.length > 0) {
+        const activeProjects = existingProjects.filter(p => p.status !== 'rejected');
+        
+        if (activeProjects.length > 0) {
+          console.log(`Duplicate project found: "${projectData.name}" on ${projectData.blockchain}, existing IDs:`, 
+            activeProjects.map(p => p.id).join(', '));
+            
+          return NextResponse.json(
+            { 
+              error: `A project with the name "${projectData.name}" already exists on ${projectData.blockchain} blockchain. Please use a different name or network.`,
+              duplicateDetected: true
+            },
+            { status: 409 }  // 409 Conflict status code
+          );
+        }
       }
     } catch (checkError) {
       console.error("Error checking if project exists:", checkError);
-      // Continue even if the check fails - better to allow a potential duplicate than reject a valid submission
+      // Continue even if the check fails, better to log the error than block valid submissions
     }
     
     // Set status to pending and approved to false by default

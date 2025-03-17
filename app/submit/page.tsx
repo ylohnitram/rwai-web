@@ -183,7 +183,12 @@ export default function SubmitPage() {
       if (!response.ok) {
         // Special handling for conflict (duplicate name)
         if (response.status === 409) {
-          throw new Error(result.error || 'A project with this name already exists. Please choose a different name.');
+          // Check if this is a duplicate detection error
+          if (result.duplicateDetected) {
+            throw new Error(result.error || 'A project with this name and blockchain already exists. Please choose a different name or blockchain.');
+          } else {
+            throw new Error(result.error || 'A project with this name already exists. Please choose a different name.');
+          }
         }
         throw new Error(result.error || 'Failed to submit project')
       }

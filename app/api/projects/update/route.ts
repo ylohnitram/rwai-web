@@ -80,29 +80,39 @@ export async function PUT(request: Request) {
       );
     }
     
-    // If the name is being changed, check if the new name already exists for a different project
-    if (updatedData.name && updatedData.name !== existingProject.name) {
+    // If the name or blockchain is being changed, check for duplicates
+    if ((updatedData.name && updatedData.name !== existingProject.name) || 
+        (updatedData.blockchain && updatedData.blockchain !== existingProject.blockchain)) {
       try {
-        // We need to check if another project (not this one) has the same name
-        const { data, count, error } = await supabaseAdmin
+        // Determine the name and blockchain to check
+        const nameToCheck = updatedData.name || existingProject.name;
+        const blockchainToCheck = updatedData.blockchain || existingProject.blockchain;
+        
+        // We need to check if another project (not this one) has the same name and blockchain
+        const { data: duplicates, count, error } = await supabaseAdmin
           .from('projects')
           .select('*', { count: 'exact' })
           .neq('id', existingProject.id) // Exclude current project
-          .ilike('name', updatedData.name);
+          .ilike('name', nameToCheck.trim())
+          .eq('blockchain', blockchainToCheck)
+          .not('status', 'eq', 'rejected'); // Exclude rejected projects
           
         if (error) {
           throw error;
         }
         
         if ((count || 0) > 0) {
-          console.log(`Project with name "${updatedData.name}" already exists`);
+          console.log(`Duplicate project found: "${nameToCheck}" on ${blockchainToCheck}`);
           return NextResponse.json(
-            { error: `A project with the name "${updatedData.name}" already exists. Please use a different name.` },
+            { 
+              error: `A project with the name "${nameToCheck}" already exists on ${blockchainToCheck} blockchain. Please use a different name or network.`,
+              duplicateDetected: true 
+            },
             { status: 409 }
           );
         }
       } catch (checkError) {
-        console.error("Error checking if project name exists:", checkError);
+        console.error("Error checking for duplicate projects:", checkError);
         // Continue even if the check fails
       }
     }

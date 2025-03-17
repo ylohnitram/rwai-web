@@ -1,3 +1,5 @@
+// app/edit/page.tsx
+
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
@@ -18,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import DocumentUpload from "@/components/document-upload"
 import { getSupabaseClient } from "@/lib/supabase"
+import AssetTypeSelector from "@/components/asset-type-selector"
 
 const searchFormSchema = z.object({
   contactEmail: z.string().email({
@@ -62,6 +65,16 @@ const editFormSchema = z.object({
   }),
   // Make auditDocumentPath optional and allow null values
   auditDocumentPath: z.string().optional().nullable(),
+  // Make whitepaperDocumentPath optional and allow null values
+  whitepaperDocumentPath: z.string().optional().nullable(),
+  // Smart contract audit URL
+  auditUrl: z.string().url({
+    message: "Please enter a valid URL for the smart contract audit."
+  }).optional().or(z.literal("")),
+  // Whitepaper URL
+  whitepaperUrl: z.string().url({
+    message: "Please enter a valid URL for the whitepaper."
+  }).optional().or(z.literal("")),
 })
 
 type SearchFormValues = z.infer<typeof searchFormSchema>
@@ -78,6 +91,7 @@ function EditProjectContent() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [auditDocumentUrl, setAuditDocumentUrl] = useState<string | null>(null)
+  const [whitepaperDocumentUrl, setWhitepaperDocumentUrl] = useState<string | null>(null)
   const [project, setProject] = useState<any | null>(null)
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
   
@@ -103,13 +117,27 @@ function EditProjectContent() {
       contactEmail: "",
       tvl: "",
       auditDocumentPath: null,
+      whitepaperDocumentPath: null,
+      auditUrl: "",
+      whitepaperUrl: "",
     }
   })
   
-  const handleFileUploaded = (filePath: string, fileUrl: string) => {
+  const handleAuditFileUploaded = (filePath: string, fileUrl: string) => {
     if (filePath && fileUrl) {
       editForm.setValue("auditDocumentPath", filePath);
       setAuditDocumentUrl(fileUrl);
+      // Clear the URL field when a file is uploaded
+      editForm.setValue("auditUrl", "");
+    }
+  }
+  
+  const handleWhitepaperFileUploaded = (filePath: string, fileUrl: string) => {
+    if (filePath && fileUrl) {
+      editForm.setValue("whitepaperDocumentPath", filePath);
+      setWhitepaperDocumentUrl(fileUrl);
+      // Clear the URL field when a file is uploaded
+      editForm.setValue("whitepaperUrl", "");
     }
   }
   
@@ -157,6 +185,9 @@ function EditProjectContent() {
         contactEmail: data.contact_email,
         tvl: data.tvl,
         auditDocumentPath: data.audit_document_path || null,
+        whitepaperDocumentPath: data.whitepaper_document_path || null,
+        auditUrl: data.audit_url || "",
+        whitepaperUrl: data.whitepaper_url || "",
       })
       
       // Set audit document URL if available
@@ -166,6 +197,15 @@ function EditProjectContent() {
           .getPublicUrl(data.audit_document_path)
           
         setAuditDocumentUrl(urlData.publicUrl)
+      }
+      
+      // Set whitepaper document URL if available
+      if (data.whitepaper_document_path) {
+        const { data: urlData } = supabase.storage
+          .from("whitepaper-documents")
+          .getPublicUrl(data.whitepaper_document_path)
+          
+        setWhitepaperDocumentUrl(urlData.publicUrl)
       }
     } catch (err) {
       console.error("Error finding project:", err)
@@ -216,6 +256,9 @@ function EditProjectContent() {
         contactEmail: data.contact_email,
         tvl: data.tvl,
         auditDocumentPath: data.audit_document_path || null,
+        whitepaperDocumentPath: data.whitepaper_document_path || null,
+        auditUrl: data.audit_url || "",
+        whitepaperUrl: data.whitepaper_url || "",
       })
       
       // Set audit document URL if available
@@ -225,6 +268,15 @@ function EditProjectContent() {
           .getPublicUrl(data.audit_document_path)
           
         setAuditDocumentUrl(urlData.publicUrl)
+      }
+      
+      // Set whitepaper document URL if available
+      if (data.whitepaper_document_path) {
+        const { data: urlData } = supabase.storage
+          .from("whitepaper-documents")
+          .getPublicUrl(data.whitepaper_document_path)
+          
+        setWhitepaperDocumentUrl(urlData.publicUrl)
       }
     } catch (err) {
       console.error("Error loading project:", err)
@@ -268,7 +320,33 @@ function EditProjectContent() {
       // Only include audit_document_path if it exists and has changed
       if (values.auditDocumentPath && values.auditDocumentPath !== project.audit_document_path) {
         updatedData.audit_document_path = values.auditDocumentPath
-        updatedData.audit_url = auditDocumentUrl || `/audits/${values.name.toLowerCase().replace(/\s+/g, '-')}.pdf`
+      }
+      
+      // Only include whitepaper_document_path if it exists and has changed
+      if (values.whitepaperDocumentPath && values.whitepaperDocumentPath !== project.whitepaper_document_path) {
+        updatedData.whitepaper_document_path = values.whitepaperDocumentPath
+      }
+      
+      // Include audit URL if specified
+      if (values.auditUrl) {
+        updatedData.audit_url = values.auditUrl
+        // Clear document path if URL is provided instead
+        if (project.audit_document_path) {
+          updatedData.audit_document_path = null
+        }
+      } else if (values.auditUrl === "" && project.audit_url) {
+        updatedData.audit_url = null
+      }
+      
+      // Include whitepaper URL if specified
+      if (values.whitepaperUrl) {
+        updatedData.whitepaper_url = values.whitepaperUrl
+        // Clear document path if URL is provided instead
+        if (project.whitepaper_document_path) {
+          updatedData.whitepaper_document_path = null
+        }
+      } else if (values.whitepaperUrl === "" && project.whitepaper_url) {
+        updatedData.whitepaper_url = null
       }
       
       // Submit to API endpoint
@@ -289,7 +367,12 @@ function EditProjectContent() {
       if (!response.ok) {
         // Special handling for conflict (duplicate name)
         if (response.status === 409) {
-          throw new Error(result.error || 'A project with this name already exists. Please choose a different name.');
+          // Check if this is a duplicate detection error
+          if (result.duplicateDetected) {
+            throw new Error(result.error || 'A project with this name and blockchain already exists. Please choose a different name or blockchain.');
+          } else {
+            throw new Error(result.error || 'A project with this name already exists. Please choose a different name.');
+          }
         }
         throw new Error(result.error || 'Failed to update project')
       }
@@ -441,7 +524,7 @@ function EditProjectContent() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
-                      control={form.control}
+                      control={editForm.control}
                       name="type"
                       render={({ field }) => (
                         <FormItem>
@@ -552,35 +635,179 @@ function EditProjectContent() {
                     )}
                   />
 
-                  {/* Audit Document Upload */}
-                  <FormField
-                    control={editForm.control}
-                    name="auditDocumentPath"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Audit Document (Optional)</FormLabel>
-                        <FormControl>
-                          <DocumentUpload
-                            onFileUploaded={(filePath, fileUrl) => {
-                              field.onChange(filePath); // Update the form field
-                              setAuditDocumentUrl(fileUrl);
-                            }}
-                            label="Audit Report (Optional)"
-                            description="You can upload a new audit document or keep your existing one"
-                            bucketName="audit-documents"
-                            filePath={`${Date.now()}_${editForm.getValues('name').replace(/\s+/g, '_')}_audit`}
-                            initialFilePath={project?.audit_document_path || ""}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {project?.audit_document_path ? 
-                          "You already have an audit document. Upload a new one only if you want to replace it." :
-                          "Providing an audit document can speed up the review process but is not required."}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Audit Document Section */}
+                  <div className="space-y-4 p-4 border border-gray-800 rounded-lg">
+                    <h3 className="font-medium text-lg mb-2">Smart Contract Audit</h3>
+                    
+                    {/* Choose between upload or link */}
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="text-sm">Provide audit via:</div>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="radio" 
+                          name="auditMethod" 
+                          id="auditUpload" 
+                          checked={!editForm.watch('auditUrl')}
+                          onChange={() => editForm.setValue('auditUrl', '')}
+                          className="cursor-pointer"
+                        />
+                        <label htmlFor="auditUpload" className="text-sm cursor-pointer">File Upload</label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="radio" 
+                          name="auditMethod" 
+                          id="auditUrl" 
+                          checked={!!editForm.watch('auditUrl')}
+                          onChange={() => editForm.setValue('auditDocumentPath', undefined)}
+                          className="cursor-pointer"
+                        />
+                        <label htmlFor="auditUrl" className="text-sm cursor-pointer">External URL</label>
+                      </div>
+                    </div>
+                    
+                    {/* Audit Document Upload */}
+                    <FormField
+                      control={editForm.control}
+                      name="auditDocumentPath"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Audit Document (Optional)</FormLabel>
+                          <FormControl>
+                            <DocumentUpload
+                              onFileUploaded={(filePath, fileUrl) => {
+                                field.onChange(filePath); // Update the form field
+                                setAuditDocumentUrl(fileUrl);
+                                // Clear the URL field when a file is uploaded
+                                editForm.setValue("auditUrl", "");
+                              }}
+                              label="Audit Report (Optional)"
+                              description="You can upload a new audit document or keep your existing one"
+                              bucketName="audit-documents"
+                              filePath={`${Date.now()}_${editForm.getValues('name').replace(/\s+/g, '_')}_audit`}
+                              initialFilePath={project?.audit_document_path || ""}
+                              disabled={!!editForm.watch('auditUrl')}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {project?.audit_document_path ? 
+                            "You already have an audit document. Upload a new one only if you want to replace it." :
+                            "Providing an audit document can speed up the review process but is not required."}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="auditUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Audit URL</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="https://certik.com/projects/yourproject" 
+                              {...field} 
+                              className="bg-gray-800 border-gray-700"
+                              disabled={!!editForm.watch('auditDocumentPath')}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            If you prefer not to upload a file, you can provide a link to your audit from firms like CertiK, PeckShield, or other recognized security auditors.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  {/* Whitepaper Document Section */}
+                  <div className="space-y-4 p-4 border border-gray-800 rounded-lg">
+                    <h3 className="font-medium text-lg mb-2">Project Whitepaper</h3>
+                    
+                    {/* Choose between upload or link */}
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="text-sm">Provide whitepaper via:</div>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="radio" 
+                          name="whitepaperMethod" 
+                          id="whitepaperUpload" 
+                          checked={!editForm.watch('whitepaperUrl')}
+                          onChange={() => editForm.setValue('whitepaperUrl', '')}
+                          className="cursor-pointer"
+                        />
+                        <label htmlFor="whitepaperUpload" className="text-sm cursor-pointer">File Upload</label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="radio" 
+                          name="whitepaperMethod" 
+                          id="whitepaperUrl" 
+                          checked={!!editForm.watch('whitepaperUrl')}
+                          onChange={() => editForm.setValue('whitepaperDocumentPath', undefined)}
+                          className="cursor-pointer"
+                        />
+                        <label htmlFor="whitepaperUrl" className="text-sm cursor-pointer">External URL</label>
+                      </div>
+                    </div>
+                    
+                    {/* Whitepaper Document Upload */}
+                    <FormField
+                      control={editForm.control}
+                      name="whitepaperDocumentPath"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Whitepaper Document (Optional)</FormLabel>
+                          <FormControl>
+                            <DocumentUpload
+                              onFileUploaded={(filePath, fileUrl) => {
+                                field.onChange(filePath); // Update the form field
+                                setWhitepaperDocumentUrl(fileUrl);
+                                // Clear the URL field when a file is uploaded
+                                editForm.setValue("whitepaperUrl", "");
+                              }}
+                              label="Whitepaper (Optional)"
+                              description="You can upload a new whitepaper document or keep your existing one"
+                              bucketName="whitepaper-documents"
+                              filePath={`${Date.now()}_${editForm.getValues('name').replace(/\s+/g, '_')}_whitepaper`}
+                              initialFilePath={project?.whitepaper_document_path || ""}
+                              disabled={!!editForm.watch('whitepaperUrl')}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {project?.whitepaper_document_path ? 
+                            "You already have a whitepaper document. Upload a new one only if you want to replace it." :
+                            "Providing a whitepaper document can help reviewers better understand your project but is not required."}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="whitepaperUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Whitepaper URL</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="https://yourproject.com/whitepaper.pdf" 
+                              {...field} 
+                              className="bg-gray-800 border-gray-700"
+                              disabled={!!editForm.watch('whitepaperDocumentPath')}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            If you prefer not to upload a file, you can provide a link to your whitepaper.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <Separator className="bg-gray-800" />
 
@@ -591,7 +818,7 @@ function EditProjectContent() {
                       <FormItem>
                         <FormLabel>Contact Email *</FormLabel>
                         <FormControl>
-                          <Input
+			  <Input
                             type="email"
                             placeholder="your@email.com"
                             {...field}
